@@ -1,9 +1,5 @@
 # ELIVORA — Real-Time AI Voice & Vision Desktop Assistant
 
-**Repo name:** `elivora-ai-desktop-assistant`
-
-**Short description (for GitHub "About" box):**
-> ELIVORA is a real-time, voice-controlled AI desktop assistant built in Python using Google's Gemini Live API. It sees your screen/camera, hears your voice, opens and closes apps, sends WhatsApp messages, writes files, and answers questions — all through natural conversation.
 
 ---
 
