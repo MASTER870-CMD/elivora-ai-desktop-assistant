@@ -1,96 +1,220 @@
-# ELIVORA — Real-Time AI Voice & Vision Desktop Assistant
+<div align="center">
 
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:050505,100:00E5FF&height=220&section=header&text=ELIVORA&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=Your%20Voice.%20Your%20PC.%20One%20Command.&descAlignY=58&descSize=20&animation=fadeIn" width="100%"/>
+
+<img src="https://readme-typing-svg.demolab.com?font=Montserrat&weight=400&size=24&duration=3000&pause=800&color=00E5FF&center=true&vCenter=true&width=700&lines=A+Local-First+AI+Operating+Agent;Sees+your+screen.+Hears+your+voice.+Runs+your+PC.;Built+on+Gemini+Live+%2B+Python+%2B+PyWebView;Crafted+by+Shashank+Gowda+NB" alt="Typing SVG" />
+
+<br/>
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-00E5FF?style=for-the-badge&logo=python&logoColor=white&labelColor=050505)](https://www.python.org/)
+[![Gemini](https://img.shields.io/badge/Gemini-Live%20API-00E5FF?style=for-the-badge&logo=googlegemini&logoColor=white&labelColor=050505)](https://ai.google.dev/)
+[![Platform](https://img.shields.io/badge/Platform-Windows-00E5FF?style=for-the-badge&logo=windows11&logoColor=white&labelColor=050505)](#)
+[![PyWebView](https://img.shields.io/badge/GUI-PyWebView-00E5FF?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=050505)](#)
+[![License](https://img.shields.io/badge/License-MIT-00E5FF?style=for-the-badge&labelColor=050505)](#-license)
+
+[![Stars](https://img.shields.io/github/stars/MASTER870-CMD/ELIVORA?style=for-the-badge&color=00E5FF&labelColor=050505)](https://github.com/MASTER870-CMD)
+[![Last Commit](https://img.shields.io/github/last-commit/MASTER870-CMD/ELIVORA?style=for-the-badge&color=00E5FF&labelColor=050505)](https://github.com/MASTER870-CMD)
+[![Made By](https://img.shields.io/badge/Made%20By-Shashank%20Gowda%20NB-00E5FF?style=for-the-badge&labelColor=050505)](https://github.com/MASTER870-CMD)
+
+</div>
+
+<br/>
+
+## 📡 What is ELIVORA?
+
+**ELIVORA** is a full-stack, local-first **AI operating agent** for Windows — a real-time, voice-driven system co-pilot that can *see* your screen or camera, *hear* your commands, *speak* back in a natural voice, and *act* directly on your machine: launching apps, killing processes, writing files, messaging contacts on WhatsApp, checking the weather, and pulling live facts off the web — all through a single always-on desktop HUD.
+
+It's not a chatbot wrapper. It's a persistent background system with its own audio pipeline, vision pipeline, process manager, local web server, and a GitHub-connected deployment dashboard — wired together into one native desktop application.
+
+<div align="center">
+<img src="https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif" width="500">
+</div>
 
 ---
 
-## 🧠 What is ELIVORA?
+## 🎯 Core Capabilities
 
-ELIVORA is a **JARVIS-style AI assistant** that runs locally on your Windows PC. It combines real-time voice conversation, live camera/screen vision, and system-level automation into a single desktop application — built entirely in Python.
+<table>
+<tr>
+<td width="50%" valign="top">
 
-Unlike simple chatbot wrappers, ELIVORA can **take real actions on your computer**: opening and closing applications, sending targeted WhatsApp messages, creating files, checking the weather, and searching the web — all triggered through natural spoken conversation, in any language.
+### 🎙️ Real-Time Voice Intelligence
+Full duplex, low-latency conversation powered by the **Gemini Live API**, with barge-in support — ELIVORA stops talking the instant you start.
 
-## ✨ Key Features
+### 👁️ Live Vision
+Streams your **webcam or full screen** straight into the model's context, so it can literally see what you see and reason about it in real time.
 
-| Feature | Description |
+### 🖥️ System Command Authority
+Opens and force-closes any installed application by name, using a self-updating index built from a live Windows `Get-StartApps` scan.
+
+</td>
+<td width="50%" valign="top">
+
+### ✍️ Autonomous File Generation
+Ask for an essay, article, or note — it writes the full content and drops a ready `.txt` file straight onto your Desktop, opened automatically.
+
+### 💬 WhatsApp GUI Automation
+Drives your keyboard and mouse to open WhatsApp, search a contact, and fire off a message — zero manual clicks.
+
+### ☁️ Cloud & Repository Hub
+A built-in local dashboard for browsing, previewing, and managing GitHub repositories and deployments, rendered as its own SaaS-style panel.
+
+</td>
+</tr>
+</table>
+
+### More under the hood
+
+- 🌦️ **Live weather lookups** via Open-Meteo geocoding + forecast APIs
+- 🔎 **Google Custom Search** tool the AI calls autonomously whenever it doesn't know something
+- 📊 **Live hardware telemetry** — CPU, RAM, battery, network status, and ping, streamed to the HUD every second
+- 🔁 **Self-healing multi-key rotation** — automatically rotates across a pool of Gemini API keys on quota exhaustion or disconnects, so the assistant never goes silent
+- 🪟 **Three embedded dashboards** served from a local HTTP server: a landing **Hub**, the **AI Command Center**, and the **Cloud Host** panel
+- 🎚️ Mic mute, mini-mode, and graceful terminate controls, all wired to the native desktop shell
+
+---
+
+## 🧠 Architecture
+
+```mermaid
+flowchart LR
+    subgraph Desktop["🖥️ PyWebView Desktop Shell"]
+        HUD[AI Command Center HUD]
+        HUB[Landing Hub]
+        CLOUD[Cloud / Repo Dashboard]
+    end
+
+    subgraph Core["⚙️ Python Core"]
+        SRV[Local HTTP Server :8080]
+        CAM[Camera / Screen Worker]
+        STAT[Hardware Stats Thread]
+        LOOP[Async Audio/Video Loop]
+    end
+
+    subgraph AI["🤖 Gemini Live"]
+        GEMINI[gemini-3.1-flash-live-preview]
+        TOOLS[Function-Calling Tools]
+    end
+
+    subgraph Actions["🛠️ System Actions"]
+        APP[Open / Close Apps]
+        FILE[Create & Write Files]
+        WA[WhatsApp Automation]
+        WEATHER[Weather API]
+        SEARCH[Google Search API]
+    end
+
+    HUD <--> SRV
+    HUB --> SRV
+    CLOUD --> SRV
+    SRV <--> LOOP
+    CAM --> LOOP
+    STAT --> SRV
+    LOOP <--> GEMINI
+    GEMINI --> TOOLS
+    TOOLS --> APP & FILE & WA & WEATHER & SEARCH
+```
+
+---
+
+## 🧰 Tech Stack
+
+<div align="center">
+
+| Layer | Technology |
 |---|---|
-| 🎙️ Real-time voice conversation | Streams live audio to Google Gemini's multimodal Live API and speaks responses back naturally |
-| 👁️ Live vision | Reads your webcam or screen share in real time and can answer questions about what it sees |
-| 🖥️ App control | Opens and closes any installed Windows application by voice command (`open_application`, `close_application`) |
-| 💬 WhatsApp automation | Sends WhatsApp messages to a specific contact via GUI automation, triggered by voice |
-| 📝 File creation | Creates and writes files on demand through natural language |
-| 🌦️ Live tool calling | Fetches real-time weather and runs web searches via Gemini function calling |
-| 🌐 Multi-language | Understands and responds in multiple languages with natural, emotionally aware tone |
-| 🔑 Key rotation | Automatically rotates across multiple API keys to avoid quota interruptions |
-| 🖼️ Desktop UI | Runs as a standalone desktop app using `pywebview`, not just a terminal script |
+| **AI Engine** | Google Gemini Live API (`gemini-3.1-flash-live-preview`) |
+| **Desktop Shell** | PyWebView |
+| **Audio** | PyAudio, NumPy (RMS-based voice interrupt) |
+| **Vision** | OpenCV, Pillow, `ImageGrab` (screen capture) |
+| **System Control** | psutil, PyAutoGUI, PowerShell (`Get-StartApps`) |
+| **Backend Server** | Python `http.server` + `socketserver` (threaded) |
+| **Frontend Dashboards** | HTML5, CSS3, Vanilla JS, Bootstrap 5, Chart.js |
+| **Config / Secrets** | `python-dotenv` |
 
-## 🏗️ Tech Stack
+</div>
 
-- **Language:** Python 3
-- **AI Model:** Google Gemini Live API (`gemini-live` multimodal streaming)
-- **Async architecture:** `asyncio` with `TaskGroup` for concurrent audio, video, and text streams
-- **Audio I/O:** `PyAudio`
-- **Vision:** `OpenCV` (`cv2`), `Pillow`
-- **System automation:** `pyautogui`, `psutil`, Windows `subprocess`/PowerShell for app discovery
-- **Desktop UI:** `pywebview` + local HTTP server (`http.server`)
-- **Function calling / tool use:** Gemini native tool-calling for weather, search, app control, file creation, WhatsApp
-
-## 📂 How It Works (Architecture)
-
-1. A local web server + `pywebview` window renders the desktop UI.
-2. Background threads continuously scan installed apps, capture camera/screen frames, and measure latency.
-3. An async `AudioLoop` streams microphone audio and video frames to Gemini's Live API in real time.
-4. When the AI decides an action is needed (open an app, send a WhatsApp message, create a file, check weather), it triggers a **function call**, which is executed locally and the result is sent back into the conversation — so the AI can respond naturally about what it just did.
-5. Audio responses are streamed back and played instantly, creating a natural back-and-forth conversation.
+---
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### 1 — Clone the repository
+
 ```bash
-pip install pyaudio opencv-python pillow psutil pywebview numpy pyautogui google-genai
+git clone https://github.com/MASTER870-CMD/ELIVORA.git
+cd ELIVORA
 ```
 
-### Setup
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/MASTER870-CMD/elivora-ai-desktop-assistant.git
-   cd elivora-ai-desktop-assistant
-   ```
-2. Create a `.env` file in the project root (see `.env.example`):
-   ```
-   GEMINI_API_KEY_1=your_key_here
-   GEMINI_API_KEY_2=your_key_here
-   GEMINI_API_KEY_3=your_key_here
-   ```
-3. Run it:
-   ```bash
-   python ap.py
-   ```
+### 2 — Install dependencies
 
-> ⚠️ Never commit your real `.env` file or API keys. This repo's `.gitignore` excludes them by default.
+```bash
+pip install psutil pywebview numpy pyautogui opencv-python pillow pyaudio python-dotenv google-genai
+```
 
-## 🎯 Use Cases
+### 3 — Configure your environment
 
-- Hands-free desktop control for accessibility
-- Voice-first productivity assistant
-- Demonstration of real-time multimodal AI (voice + vision + tool use) in a working desktop app
-- Foundation for building custom AI copilots / automation agents
+Create a `.env` file in the project root:
 
-## 🗺️ Roadmap
+```env
+GEMINI_API_KEYS=your_key_1,your_key_2,your_key_3
+GOOGLE_SEARCH_API_KEY=your_google_search_api_key
+GOOGLE_SEARCH_CX=your_search_engine_id
+GITHUB_DEFAULT_TOKEN=your_github_token
+```
 
-- [ ] Cross-platform support (macOS/Linux app control)
-- [ ] Plugin system for custom voice commands
-- [ ] Persistent conversation memory
-- [ ] Packaged installer (.exe)
+> ⚠️ **Never commit your `.env` file.** Add it to `.gitignore` before pushing.
 
-## 👤 About the Author
+### 4 — Launch ELIVORA
 
-Built by **Shashank Gowda** — Diploma in Computer Technology & IT Infrastructure (NTTF), Bengaluru.
-CCNA (Networking, Switching/Routing, Enterprise Security & Automation) | AWS Academy Cloud Operations | Cybersecurity & Endpoint Security certified.
+```bash
+python ap.py
+```
 
-- 🌐 Portfolio: [shashankgowdanb.netlify.app](https://shashankgowdanb.netlify.app/)
-- 💻 GitHub: [@MASTER870-CMD](https://github.com/MASTER870-CMD)
+The desktop window boots straight into the **Hub**, backed by a local server at `http://127.0.0.1:8080`.
 
 ---
 
-### Keywords
-`python ai assistant` · `gemini live api` · `voice controlled desktop app` · `real-time multimodal ai` · `whatsapp automation python` · `system automation python` · `jarvis clone python` · `ai agent function calling` · `pyautogui automation` · `bangalore python developer portfolio`
+## 🗂️ Project Structure
+
+```
+ELIVORA/
+├── ap.py                  # Main entry point — AI loop, server, desktop shell
+├── local_apps_db.json     # Auto-generated index of installed applications
+├── .env                   # Your local secrets (never commit this)
+└── README.md
+```
+
+---
+
+## 🛣️ Roadmap
+
+- [ ] Cross-platform support (macOS / Linux system control)
+- [ ] Plugin system for custom voice-triggered tools
+- [ ] Persistent conversation memory across sessions
+- [ ] Packaged `.exe` installer via PyInstaller
+
+---
+
+## 👨‍💻 About the Developer
+
+<div align="center">
+
+### Shashank Gowda NB
+
+*Builder of ELIVORA — a full local AI operating agent, from audio pipeline to desktop shell to cloud dashboard, engineered solo end-to-end.*
+
+[![GitHub](https://img.shields.io/badge/GitHub-MASTER870--CMD-00E5FF?style=for-the-badge&logo=github&logoColor=white&labelColor=050505)](https://github.com/MASTER870-CMD)
+
+<img src="https://readme-typing-svg.demolab.com?font=Space+Mono&weight=500&size=16&duration=2500&pause=1000&color=00E5FF&center=true&vCenter=true&width=600&lines=Real-time+audio%2C+vision%2C+and+system+control+%E2%80%94+shipped+solo.;This+is+what+a+%E2%82%B91Cr-caliber+build+looks+like." alt="Footer Typing SVG" />
+
+</div>
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+
+<div align="center">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00E5FF,100:050505&height=120&section=footer" width="100%"/>
+</div>
