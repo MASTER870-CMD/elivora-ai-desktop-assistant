@@ -4097,40 +4097,17 @@ class AudioLoop:
             except Exception as e:
                 print(f"[ERROR] Failed to start Windows MCP: {e}")
 
-            # 2. Playwright MCP Server (connects to YOUR real Chrome via CDP)
+            # 2. Playwright MCP Server (lazy - only opens browser when AI needs it)
             try:
-                # Ensure Chrome is running with remote debugging enabled
-                import subprocess, socket
-                def is_cdp_port_open():
-                    try:
-                        s = socket.create_connection(("127.0.0.1", 9222), timeout=1)
-                        s.close()
-                        return True
-                    except:
-                        return False
-                
-                if not is_cdp_port_open():
-                    chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-                    subprocess.Popen([
-                        chrome_path,
-                        "--remote-debugging-port=9222",
-                        r"--user-data-dir=C:\Users\Guru\AppData\Local\Google\Chrome\User Data",
-                        "--restore-last-session"
-                    ])
-                    print("[SYSTEM] Launched Chrome with remote debugging on port 9222")
-                    await asyncio.sleep(3)  # Give Chrome time to start
-                else:
-                    print("[SYSTEM] Chrome already running with CDP on port 9222")
-
                 server2_params = StdioServerParameters(
                     command="npx.cmd",
-                    args=["-y", "@playwright/mcp@latest", "--cdp-endpoint", "http://localhost:9222"],
+                    args=["-y", "@playwright/mcp@latest", "--browser", "chrome", "--headless"],
                     env=None
                 )
                 read2, write2 = await stack.enter_async_context(stdio_client(server2_params))
                 session2 = await stack.enter_async_context(ClientSession(read2, write2))
                 await session2.initialize()
-                print("[SYSTEM] Connected to Playwright MCP Server (attached to your Chrome)")
+                print("[SYSTEM] Connected to Playwright MCP Server (on-demand)")
                 
                 tools2_resp = await session2.list_tools()
                 for tool in tools2_resp.tools:
