@@ -1582,6 +1582,7 @@ CLOUD_HTML = r"""
                 <a class="nav-link-custom" onclick="switchView('dashboard', this)"><i class="bi bi-grid"></i> Overview</a>
                 <a class="nav-link-custom active" onclick="switchView('analytics', this)"><i class="bi bi-bar-chart"></i> Analytics</a>
                 <a class="nav-link-custom" onclick="switchView('deploy', this)"><i class="bi bi-cloud-arrow-up"></i> Deployments</a>
+                <a class="nav-link-custom" onclick="switchView('github_connect', this)" id="navGithubConnect"><i class="bi bi-github"></i> GitHub Connect <span class="badge bg-success ms-1" style="font-size:0.6rem;" id="ghConnectBadge">NEW</span></a>
                 <span class="text-muted small fw-bold px-2 mt-4 mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">CONFIGURATION</span>
                 <a class="nav-link-custom" onclick="switchView('settings', this)"><i class="bi bi-key"></i> API Config</a>
                 <span class="text-muted small fw-bold px-2 mt-4 mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">SYSTEM</span>
@@ -1643,9 +1644,24 @@ CLOUD_HTML = r"""
             </section>
 
             <!-- 3. DEPLOYMENT VIEW (DUAL-PIPELINE) -->
+           <!-- 3. DEPLOYMENT VIEW (DUAL-PIPELINE) -->
             <section id="deploy" class="view-section">
                 <div class="row justify-content-center">
                     <div class="col-12 col-lg-9 col-xl-7">
+                        <!-- Prominent Pipeline Error Banner -->
+                        <div id="pipelineErrorBanner" class="alert alert-danger d-none border-2 shadow-sm mb-4 p-3 rounded-3" role="alert">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="d-flex align-items-start gap-3">
+                                    <i class="bi bi-exclamation-octagon-fill fs-3 text-danger flex-shrink-0 mt-1"></i>
+                                    <div>
+                                        <h5 class="fw-bold text-danger mb-1" id="pipelineErrorTitle">Deployment Pipeline Error</h5>
+                                        <p class="mb-0 text-dark small" id="pipelineErrorMessage">An error occurred during deployment.</p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close" onclick="dismissPipelineError()"></button>
+                            </div>
+                        </div>
+
                         <div class="saas-card p-4 p-md-5 mb-5">
                             <h4 class="fw-bold text-main mb-1">Dual-Pipeline Deployment</h4>
                             <p class="text-muted small mb-4">Select your architecture: Static (GitHub Pages) or Node.js Fullstack (Vercel).</p>
@@ -1774,7 +1790,10 @@ CLOUD_HTML = r"""
                                             <div class="fw-bold text-main small text-uppercase">Environment Variables</div>
                                             <div class="text-muted small">Key-value parameters injected into build & runtime</div>
                                         </div>
-                                        <div class="d-flex gap-2">
+                                        <div class="d-flex gap-2 flex-wrap">
+                                            <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="syncEnvFromLocalEnv('envRowsContainer')" title="Auto-load API keys from your workspace .env file">
+                                                <i class="bi bi-download me-1"></i> Load from .env
+                                            </button>
                                             <input type="file" id="envFileInput" accept=".env,.env.*,.txt" class="d-none" onchange="handleEnvFileSelect(event)">
                                             <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="document.getElementById('envFileInput').click()" title="Upload a .env file">
                                                 <i class="bi bi-file-earmark-arrow-up me-1"></i> Import .env
@@ -1834,6 +1853,156 @@ CLOUD_HTML = r"""
                             </div>
 
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. GITHUB CONNECT VIEW -->
+            <section id="github_connect" class="view-section">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-lg-9 col-xl-8">
+
+                        <!-- LOGIN STATE: Not logged in -->
+                        <div id="ghLoginPanel" class="saas-card p-5 text-center mb-4">
+                            <div class="mb-4">
+                                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-dark text-white mb-3" style="width:72px;height:72px;">
+                                    <i class="bi bi-github" style="font-size:2.2rem;"></i>
+                                </div>
+                                <h4 class="fw-bold text-main mb-1">Connect Your GitHub Account</h4>
+                                <p class="text-muted mb-0">Sign in with GitHub to browse your repos and deploy directly to Elivora Cloud.</p>
+                            </div>
+                            <button class="btn btn-dark px-5 py-2 fw-semibold d-inline-flex align-items-center gap-2" onclick="loginWithGithub()" id="ghLoginBtn">
+                                <i class="bi bi-github"></i> Login with GitHub
+                            </button>
+                            <p class="text-muted small mt-3 mb-0"><i class="bi bi-shield-lock me-1"></i>Your GitHub token is never stored on our server. Deployment uses our secure backend.</p>
+                        </div>
+
+                        <!-- LOGGED IN STATE -->
+                        <div id="ghLoggedInPanel" class="d-none">
+                            <!-- User Info Bar -->
+                            <div class="saas-card p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <img id="ghUserAvatar" src="" class="rounded-circle" width="40" height="40" style="border:2px solid var(--border-color);">
+                                    <div>
+                                        <div class="fw-bold text-main small" id="ghUserName">Loading...</div>
+                                        <div class="text-muted" style="font-size:0.75rem;" id="ghUserLogin">@username</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm border bg-white text-main fw-semibold" onclick="loadUserRepos()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Repos
+                                    </button>
+                                    <button class="btn btn-sm border bg-white text-danger fw-semibold" onclick="logoutGithub()">
+                                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Repo Browser -->
+                            <div class="saas-card p-4 mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <div>
+                                        <h5 class="fw-bold text-main mb-0">Your Repositories</h5>
+                                        <p class="text-muted small mb-0" id="ghRepoCount">Loading...</p>
+                                    </div>
+                                    <div class="position-relative" style="min-width:220px;">
+                                        <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted" style="z-index:1;"></i>
+                                        <input type="text" class="form-control-custom ps-5" id="ghRepoSearch" placeholder="Search repos..." oninput="filterGhRepos()">
+                                    </div>
+                                </div>
+                                <div id="ghRepoList" class="d-flex flex-column gap-2" style="max-height:400px;overflow-y:auto;">
+                                    <div class="text-center text-muted py-5"><i class="bi bi-hourglass-split me-2"></i>Loading your repositories...</div>
+                                </div>
+                            </div>
+
+                            <!-- Deploy Config Panel (shown after repo selected) -->
+                            <div id="ghDeployPanel" class="saas-card p-4 p-md-5 d-none">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <i class="bi bi-github fs-5 text-main"></i>
+                                    <h5 class="fw-bold text-main mb-0">Deploy: <span id="ghSelectedRepoName">repo-name</span></h5>
+                                </div>
+                                <p class="text-muted small mb-4">Configure your build settings and environment variables, then deploy.</p>
+
+                                <!-- Branch -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">BRANCH</label>
+                                    <select id="ghBranchSelect" class="form-control-custom"></select>
+                                </div>
+
+                                <!-- Project Name -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">PROJECT NAME ON VERCEL</label>
+                                    <div class="d-flex border rounded-3 overflow-hidden" style="border-color:var(--border-color)!important;">
+                                        <input type="text" id="ghProjectName" class="form-control border-0 shadow-none text-main" placeholder="my-app" style="background:var(--bg-card);">
+                                        <span class="px-3 py-2 bg-main text-muted border-start d-none d-sm-block small" style="border-color:var(--border-color)!important;">.vercel.app</span>
+                                    </div>
+                                </div>
+
+                                <!-- Framework Preset -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">FRAMEWORK PRESET</label>
+                                    <select id="ghFramework" class="form-control-custom">
+                                        <option value="">Other / Node.js</option>
+                                        <option value="nextjs">Next.js</option>
+                                        <option value="react">Create React App</option>
+                                        <option value="vite">Vite</option>
+                                        <option value="vue">Vue.js</option>
+                                        <option value="nuxtjs">Nuxt.js</option>
+                                        <option value="svelte">SvelteKit</option>
+                                    </select>
+                                </div>
+
+                                <!-- Build Settings Accordion -->
+                                <div class="border rounded-3 p-3 mb-3 bg-white" style="border-color:var(--border-color)!important;">
+                                    <button type="button" class="accordion-header-btn" onclick="toggleEl('ghBuildSettingsBody','ghBuildChevron')">
+                                        <div><div class="fw-bold text-main small text-uppercase">Build & Output Settings</div><div class="text-muted small">Build command, output directory, install command</div></div>
+                                        <i class="bi bi-chevron-down text-muted" id="ghBuildChevron" style="transition:transform 0.2s;"></i>
+                                    </button>
+                                    <div id="ghBuildSettingsBody" class="d-none mt-3 pt-3 border-top" style="border-color:var(--border-color)!important;">
+                                        <div class="mb-3"><label class="form-label small fw-bold text-main">BUILD COMMAND</label><input type="text" id="ghBuildCmd" class="form-control-custom" placeholder="npm run build"></div>
+                                        <div class="mb-3"><label class="form-label small fw-bold text-main">OUTPUT DIRECTORY</label><input type="text" id="ghOutputDir" class="form-control-custom" placeholder="dist"></div>
+                                        <div class="mb-0"><label class="form-label small fw-bold text-main">INSTALL COMMAND</label><input type="text" id="ghInstallCmd" class="form-control-custom" placeholder="npm install"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Environment Variables -->
+                                <div class="border rounded-3 p-3 mb-4 bg-white" style="border-color:var(--border-color)!important;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div><div class="fw-bold text-main small text-uppercase">Environment Variables</div><div class="text-muted small">Injected into build & runtime</div></div>
+                                        <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="addGhEnvRow()"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                                    </div>
+                                    <div id="ghEnvRowsContainer" class="d-flex flex-column gap-2 mt-2"></div>
+                                </div>
+
+                                <!-- Auto-redeploy toggle -->
+                                <div class="d-flex align-items-center justify-content-between border rounded-3 p-3 mb-4" style="border-color:var(--border-color)!important;">
+                                    <div>
+                                        <div class="fw-bold text-main small">Auto-Redeploy on Push</div>
+                                        <div class="text-muted small">Automatically redeploy when you push to this branch</div>
+                                    </div>
+                                    <div class="form-check form-switch m-0">
+                                        <input class="form-check-input" type="checkbox" id="ghAutoRedeploy" role="switch" style="width:2.5rem;height:1.3rem;cursor:pointer;">
+                                    </div>
+                                </div>
+
+                                <!-- Deploy Button -->
+                                <button type="button" id="ghDeployBtn" class="btn-primary-custom w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2" onclick="triggerGithubDeploy()">
+                                    <i class="bi bi-rocket-takeoff-fill me-1"></i> Deploy from GitHub
+                                </button>
+
+                                <!-- Progress -->
+                                <div id="ghDeployProgress" class="mt-4 p-3 border rounded-3 bg-main d-none" style="border-color:var(--border-color)!important;">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-bold text-main small text-truncate pe-2" id="ghDeployStatus">Initializing...</span>
+                                        <span class="fw-bold text-main small flex-shrink-0" id="ghDeployPct">0%</span>
+                                    </div>
+                                    <div class="progress mb-2" style="height:6px;background:var(--border-color);">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="ghDeployBar" style="width:0%;background-color:var(--primary);"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </section>
@@ -1898,13 +2067,74 @@ CLOUD_HTML = r"""
         </main>
     </div>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+        import { getAuth, GithubAuthProvider, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "{{FIREBASE_API_KEY}}",
+            authDomain: "{{FIREBASE_AUTH_DOMAIN}}",
+            projectId: "{{FIREBASE_PROJECT_ID}}",
+            storageBucket: "{{FIREBASE_STORAGE_BUCKET}}",
+            messagingSenderId: "{{FIREBASE_MESSAGING_SENDER_ID}}",
+            appId: "{{FIREBASE_APP_ID}}"
+        };
+        const fbApp = initializeApp(firebaseConfig);
+        const fbAuth = getAuth(fbApp);
+        const ghProvider = new GithubAuthProvider();
+        ghProvider.addScope('repo');
+        ghProvider.addScope('read:user');
+
+        window._fbAuth = fbAuth;
+        window._ghProvider = ghProvider;
+        window._GithubAuthProvider = GithubAuthProvider;
+        window._signInWithRedirect = signInWithRedirect;
+        window._signOut = signOut;
+
+        // On page load: check if we just came back from a GitHub redirect login
+        getRedirectResult(fbAuth).then((result) => {
+            if (result && result.user) {
+                const credential = GithubAuthProvider.credentialFromResult(result);
+                if (credential && credential.accessToken) {
+                    window._lastGhToken = credential.accessToken;
+                    window._ghOAuthToken = credential.accessToken;
+                    localStorage.setItem('elivora_gh_oauth_token', credential.accessToken);
+                }
+            }
+        }).catch((err) => {
+            if (err.code !== 'auth/no-auth-event') {
+                console.warn('GitHub redirect result error:', err.message);
+                if (window.showToast) showToast('GitHub login error: ' + err.message, 'danger');
+            }
+        });
+
+        onAuthStateChanged(fbAuth, (user) => {
+            if (user) {
+                // Restore token from localStorage if redirect result already stored it
+                const token = window._ghOAuthToken || localStorage.getItem('elivora_gh_oauth_token');
+                if (token) {
+                    window._ghOAuthToken = token;
+                    localStorage.setItem('elivora_gh_oauth_token', token);
+                }
+                window._ghUser = user;
+                if (window.onGhUserReady) window.onGhUserReady(user);
+            } else {
+                window._ghUser = null;
+                window._ghOAuthToken = null;
+                if (window.onGhUserSignedOut) window.onGhUserSignedOut();
+            }
+        });
+    </script>
+
     <!-- Application JavaScript Engine -->
     <script>
-        const CONFIG = {
-            USERNAME: localStorage.getItem('elivora_gh_user') || '',
+       const CONFIG = {
+            USERNAME: localStorage.getItem('elivora_gh_user') || '{{GITHUB_USERNAME_PLACEHOLDER}}',
             TOKEN: localStorage.getItem('elivora_gh_token') || '{{GITHUB_TOKEN_PLACEHOLDER}}',
             VERCEL_TOKEN: localStorage.getItem('elivora_vercel_token') || '{{VERCEL_TOKEN_PLACEHOLDER}}'
         };
+        
 
         let projects = [];
         let activeDeployments = new Set();
@@ -1936,7 +2166,8 @@ CLOUD_HTML = r"""
                 'dashboard': 'Deployments Overview',
                 'analytics': 'Analytics Dashboard',
                 'deploy': 'Dual-Pipeline Deployment',
-                'settings': 'API Credentials & Configuration'
+                'settings': 'API Credentials & Configuration',
+                'github_connect': 'GitHub Connect & Deploy'
             };
             document.getElementById('pageTitle').innerText = titleMap[viewId] || 'Dashboard';
             if (window.innerWidth < 992) toggleSidebar(false);
@@ -2053,6 +2284,357 @@ CLOUD_HTML = r"""
                 body.classList.add('d-none');
                 icon.style.transform = 'rotate(0deg)';
             }
+        }
+
+        // Generic accordion toggle helper
+        function toggleEl(bodyId, iconId) {
+            const body = document.getElementById(bodyId);
+            const icon = document.getElementById(iconId);
+            if (!body) return;
+            const hidden = body.classList.contains('d-none');
+            body.classList.toggle('d-none', !hidden);
+            if (icon) icon.style.transform = hidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        // =====================================================================
+        // GITHUB CONNECT — Firebase OAuth Login + Repo Browser + Vercel Deploy
+        // =====================================================================
+        let _ghRepos = [];
+        let _ghSelectedRepo = null;
+
+        // Auth state callbacks wired to Firebase module
+        window.onGhUserReady = function(user) {
+            document.getElementById('ghLoginPanel').classList.add('d-none');
+            document.getElementById('ghLoggedInPanel').classList.remove('d-none');
+            document.getElementById('ghUserName').textContent = user.displayName || user.email || 'GitHub User';
+            document.getElementById('ghUserLogin').textContent = '@' + (user.reloadUserInfo?.screenName || user.email?.split('@')[0] || 'user');
+            const avatar = user.photoURL;
+            if (avatar) document.getElementById('ghUserAvatar').src = avatar;
+            // Change badge to connected
+            const badge = document.getElementById('ghConnectBadge');
+            if (badge) { badge.textContent = 'CONNECTED'; badge.className = 'badge bg-success ms-1'; badge.style.fontSize = '0.6rem'; }
+            loadUserRepos();
+        };
+
+        window.onGhUserSignedOut = function() {
+            document.getElementById('ghLoginPanel').classList.remove('d-none');
+            document.getElementById('ghLoggedInPanel').classList.add('d-none');
+            document.getElementById('ghDeployPanel').classList.add('d-none');
+            const badge = document.getElementById('ghConnectBadge');
+            if (badge) { badge.textContent = 'NEW'; badge.className = 'badge bg-success ms-1'; badge.style.fontSize = '0.6rem'; }
+        };
+
+        // Check if already logged in on page load
+        (function checkGhSession() {
+            const savedToken = localStorage.getItem('elivora_gh_oauth_token');
+            if (savedToken) window._ghOAuthToken = savedToken;
+        })();
+
+        async function loginWithGithub() {
+            const btn = document.getElementById('ghLoginBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Redirecting to GitHub...';
+            try {
+                if (!window._signInWithRedirect || !window._ghProvider) {
+                    throw new Error('Firebase not loaded yet. Please wait a moment and try again.');
+                }
+                // This redirects the entire page to GitHub login, then back to /cloud
+                await window._signInWithRedirect(window._fbAuth, window._ghProvider);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-github"></i> Login with GitHub';
+                showToast(err.message || 'Login failed. Please try again.', 'danger');
+            }
+        }
+
+        async function logoutGithub() {
+            try {
+                await window._signOut(window._fbAuth);
+                localStorage.removeItem('elivora_gh_oauth_token');
+                window._ghOAuthToken = null;
+                _ghRepos = [];
+                _ghSelectedRepo = null;
+            } catch(e) { showToast('Logout failed: ' + e.message, 'danger'); }
+        }
+
+        async function loadUserRepos() {
+            const token = window._ghOAuthToken;
+            if (!token) { showToast('Not logged in to GitHub', 'warning'); return; }
+            const list = document.getElementById('ghRepoList');
+            const countEl = document.getElementById('ghRepoCount');
+            list.innerHTML = '<div class="text-center text-muted py-5"><span class="spinner-border spinner-border-sm me-2"></span>Fetching repositories...</div>';
+            try {
+                let allRepos = [];
+                let page = 1;
+                while (true) {
+                    const res = await fetch(`https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator`, {
+                        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+                    const batch = await res.json();
+                    if (!batch.length) break;
+                    allRepos = allRepos.concat(batch);
+                    page++;
+                    if (batch.length < 100) break;
+                }
+                _ghRepos = allRepos;
+                countEl.textContent = `${allRepos.length} repositories found`;
+                renderGhRepos(allRepos);
+            } catch(e) {
+                list.innerHTML = `<div class="alert alert-danger m-0">${e.message}</div>`;
+            }
+        }
+
+        function renderGhRepos(repos) {
+            const list = document.getElementById('ghRepoList');
+            if (!repos.length) { list.innerHTML = '<div class="text-center text-muted py-4">No repositories found.</div>'; return; }
+            list.innerHTML = repos.map(r => `
+                <div class="border rounded-3 p-3 bg-white d-flex align-items-center justify-content-between gap-3 repo-card-wrapper" style="cursor:pointer;border-color:var(--border-color)!important;" onclick="selectGhRepo(${JSON.stringify(JSON.stringify(r))})">
+                    <div class="d-flex align-items-center gap-3 overflow-hidden">
+                        <i class="bi bi-${r.private ? 'lock-fill text-warning' : 'book text-muted'} flex-shrink-0 fs-5"></i>
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-main text-truncate small">${escapeHtml(r.full_name)}</div>
+                            <div class="text-muted text-truncate" style="font-size:0.75rem;">${escapeHtml(r.description || 'No description')}</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        ${r.language ? `<span class="badge border text-main" style="font-size:0.65rem;background:var(--bg-main);">${escapeHtml(r.language)}</span>` : ''}
+                        <span class="badge border text-muted" style="font-size:0.65rem;background:var(--bg-main);">${r.private ? 'Private' : 'Public'}</span>
+                        <button class="btn btn-sm btn-dark px-3 py-1 fw-semibold flex-shrink-0" style="font-size:0.75rem;" onclick="event.stopPropagation();selectGhRepo(${JSON.stringify(JSON.stringify(r))})">Deploy</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function filterGhRepos() {
+            const q = document.getElementById('ghRepoSearch').value.toLowerCase();
+            renderGhRepos(_ghRepos.filter(r => r.full_name.toLowerCase().includes(q) || (r.description||'').toLowerCase().includes(q)));
+        }
+
+        async function selectGhRepo(repoJsonStr) {
+            const repo = JSON.parse(repoJsonStr);
+            _ghSelectedRepo = repo;
+            document.getElementById('ghSelectedRepoName').textContent = repo.full_name;
+            document.getElementById('ghProjectName').value = repo.name.toLowerCase().replace(/[^a-z0-9-]/g,'-').replace(/-+/g,'-').substring(0,50);
+            document.getElementById('ghDeployPanel').classList.remove('d-none');
+            document.getElementById('ghDeployPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Load branches
+            const branchSel = document.getElementById('ghBranchSelect');
+            branchSel.innerHTML = '<option>Loading branches...</option>';
+            branchSel.disabled = true;
+            try {
+                const res = await fetch(`https://api.github.com/repos/${repo.full_name}/branches?per_page=100`, {
+                    headers: { 'Authorization': 'Bearer ' + window._ghOAuthToken }
+                });
+                const branches = await res.json();
+                const defaultBranch = repo.default_branch || 'main';
+                branchSel.innerHTML = branches.map(b =>
+                    `<option value="${escapeHtml(b.name)}" ${b.name===defaultBranch?'selected':''}>${escapeHtml(b.name)}</option>`
+                ).join('');
+                branchSel.disabled = false;
+            } catch(e) {
+                branchSel.innerHTML = `<option value="${repo.default_branch||'main'}">${repo.default_branch||'main'}</option>`;
+                branchSel.disabled = false;
+            }
+        }
+
+        function addGhEnvRow(key='', val='') {
+            const container = document.getElementById('ghEnvRowsContainer');
+            const row = document.createElement('div');
+            row.className = 'd-flex gap-2 align-items-center';
+            row.innerHTML = `
+                <input type="text" class="form-control-custom gh-env-key" placeholder="KEY" value="${escapeHtml(key)}" style="flex:1;">
+                <input type="text" class="form-control-custom gh-env-val" placeholder="VALUE" value="${escapeHtml(val)}" style="flex:2;">
+                <button type="button" class="btn btn-sm text-danger border-0 p-1" onclick="this.closest('div').remove()"><i class="bi bi-x-lg"></i></button>`;
+            container.appendChild(row);
+        }
+
+        function getGhEnvVars() {
+            const rows = document.querySelectorAll('#ghEnvRowsContainer > div');
+            const vars = [];
+            rows.forEach(row => {
+                const k = row.querySelector('.gh-env-key')?.value?.trim();
+                const v = row.querySelector('.gh-env-val')?.value?.trim();
+                if (k) vars.push({ key: k, value: v || '', type: 'plain', target: ['production', 'preview', 'development'] });
+            });
+            return vars;
+        }
+
+        function setGhDeployProgress(pct, status) {
+            document.getElementById('ghDeployProgress').classList.remove('d-none');
+            document.getElementById('ghDeployBar').style.width = pct + '%';
+            document.getElementById('ghDeployPct').textContent = pct + '%';
+            document.getElementById('ghDeployStatus').textContent = status;
+        }
+
+        async function triggerGithubDeploy() {
+            if (!_ghSelectedRepo) { showToast('Please select a repository first.', 'warning'); return; }
+            const vercelToken = CONFIG.VERCEL_TOKEN;
+            if (!vercelToken) { showToast('Vercel token not configured. Go to API Config.', 'warning'); return; }
+
+            const repo = _ghSelectedRepo;
+            const branch = document.getElementById('ghBranchSelect').value;
+            const projectName = document.getElementById('ghProjectName').value.trim().toLowerCase().replace(/[^a-z0-9-]/g,'-') || repo.name;
+            const framework = document.getElementById('ghFramework').value || null;
+            const buildCmd = document.getElementById('ghBuildCmd').value.trim() || null;
+            const outputDir = document.getElementById('ghOutputDir').value.trim() || null;
+            const installCmd = document.getElementById('ghInstallCmd').value.trim() || null;
+            const envVars = getGhEnvVars();
+            const autoRedeploy = document.getElementById('ghAutoRedeploy').checked;
+            const ghToken = window._ghOAuthToken;
+
+            const btn = document.getElementById('ghDeployBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deploying...';
+
+            try {
+                setGhDeployProgress(10, 'Creating Vercel project...');
+
+                // Step 1: Create/update Vercel project linked to GitHub repo
+                const projPayload = {
+                    name: projectName,
+                    gitRepository: { type: 'github', repo: repo.full_name },
+                };
+                if (framework) projPayload.framework = framework;
+                if (buildCmd) projPayload.buildCommand = buildCmd;
+                if (outputDir) projPayload.outputDirectory = outputDir;
+                if (installCmd) projPayload.installCommand = installCmd;
+
+                await fetch('/vercel_api/v11/projects', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(projPayload)
+                });
+
+                setGhDeployProgress(30, 'Injecting environment variables...');
+
+                // Step 2: Push env vars
+                if (envVars.length > 0) {
+                    await fetch(`/vercel_api/v10/projects/${projectName}/env`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(envVars)
+                    }).catch(() => {});
+                }
+
+                setGhDeployProgress(55, 'Triggering GitHub-linked deployment...');
+
+                // Step 3: Trigger deployment from GitHub source
+                const deployPayload = {
+                    name: projectName,
+                    gitSource: {
+                        type: 'github',
+                        repoId: String(repo.id),
+                        ref: branch
+                    },
+                    target: 'production'
+                };
+                if (framework || buildCmd || outputDir || installCmd) {
+                    deployPayload.projectSettings = { framework, buildCommand: buildCmd, outputDirectory: outputDir, installCommand: installCmd };
+                }
+
+                const deployRes = await fetch('/vercel_api/v13/deployments?skipAutoDetectionConfirmation=1', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(deployPayload)
+                });
+
+                if (!deployRes.ok) {
+                    const err = await deployRes.json().catch(() => ({}));
+                    throw new Error(err.error?.message || `Deploy failed (HTTP ${deployRes.status})`);
+                }
+
+                const dData = await deployRes.json();
+                const deploymentId = dData.id || '';
+                let rawUrl = dData.url || (dData.alias && dData.alias[0]) || `${projectName}.vercel.app`;
+                const liveUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+
+                setGhDeployProgress(75, 'Build started on Vercel. Polling status...');
+
+                // Step 4: Setup webhook for auto-redeploy
+                if (autoRedeploy && ghToken) {
+                    setGhDeployProgress(80, 'Setting up auto-redeploy webhook...');
+                    await setupGhWebhook(repo.full_name, branch, projectName, ghToken, vercelToken);
+                }
+
+                // Step 5: Poll build status
+                setGhDeployProgress(85, 'Waiting for build to complete...');
+                await pollGhDeployStatus(deploymentId, projectName, liveUrl, vercelToken);
+
+            } catch(e) {
+                showToast('Deploy failed: ' + e.message, 'danger');
+                setGhDeployProgress(0, 'Deploy failed: ' + e.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-rocket-takeoff-fill me-1"></i> Deploy from GitHub';
+            }
+        }
+
+        async function pollGhDeployStatus(deploymentId, projectName, liveUrl, vercelToken) {
+            const maxAttempts = 60;
+            let attempts = 0;
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                try {
+                    const res = await fetch(`/vercel_api/v13/deployments/${deploymentId}`, {
+                        headers: { 'Authorization': `Bearer ${vercelToken}` }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const state = data.readyState;
+
+                    if (state === 'READY') {
+                        clearInterval(pollInterval);
+                        let finalDomain = data.url || (data.alias && data.alias[0]) || `${projectName}.vercel.app`;
+                        if (!finalDomain.startsWith('http')) finalDomain = 'https://' + finalDomain;
+                        setGhDeployProgress(100, 'Deployed successfully!');
+
+                        // Save to project list
+                        const proj = { id: projectName, name: projectName, url: finalDomain, status: 'live', pipeline: 'github', source: _ghSelectedRepo?.full_name || '', createdAt: new Date().toISOString() };
+                        saveVercelDeploymentRecord(proj);
+                        renderProjects();
+
+                        const btn = document.getElementById('ghDeployBtn');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Deployed!';
+                        showToast(`🚀 Live at: ${finalDomain}`, 'success');
+                        setTimeout(() => {
+                            btn.innerHTML = '<i class="bi bi-rocket-takeoff-fill me-1"></i> Deploy from GitHub';
+                        }, 5000);
+
+                    } else if (state === 'ERROR' || state === 'CANCELED') {
+                        clearInterval(pollInterval);
+                        const btn = document.getElementById('ghDeployBtn');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-rocket-takeoff-fill me-1"></i> Deploy from GitHub';
+                        showToast('Build failed on Vercel. Check Vercel dashboard for logs.', 'danger');
+                        setGhDeployProgress(0, 'Build failed.');
+                    } else {
+                        const pct = Math.min(85 + attempts * 0.5, 98);
+                        setGhDeployProgress(Math.round(pct), `Building... (${state})`);
+                    }
+                } catch(e) {}
+                if (attempts >= maxAttempts) {
+                    clearInterval(pollInterval);
+                    setGhDeployProgress(100, 'Deployment submitted (timed out polling - check Vercel dashboard).');
+                    const btn = document.getElementById('ghDeployBtn');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-rocket-takeoff-fill me-1"></i> Deploy from GitHub';
+                }
+            }, 5000);
+        }
+
+        async function setupGhWebhook(fullRepoName, branch, projectName, ghToken, vercelToken) {
+            // Create a GitHub webhook that calls our local server's /gh_webhook endpoint
+            // Note: For auto-redeploy, we use Vercel's native GitHub integration instead
+            // by ensuring the project is linked - Vercel handles pushes automatically when linked
+            try {
+                // Attempt to link GitHub repo to Vercel project via Vercel API
+                await fetch(`/vercel_api/v9/projects/${projectName}/link`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'github', repo: fullRepoName })
+                });
+            } catch(e) {}
         }
 
         // --- Dynamic Environment Variables & .env Importer ---
@@ -2663,23 +3245,118 @@ CLOUD_HTML = r"""
             }
         }
 
-        // --- Deploy Pipeline 2: Node.js (Vercel) ---
-        async function triggerVercelDeploy() {
-            const ghToken = (CONFIG.TOKEN || "").trim();
-            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
+        // =====================================================================
+        // HELPER: Push environment variables to Vercel project via correct API
+        // =====================================================================
+        async function pushEnvVarsToVercel(projectId, envVars, vercelToken) {
+            if (!envVars || envVars.length === 0) return;
+            try {
+                // First fetch existing env vars so we can delete them before re-adding
+                const existingRes = await fetch(`/vercel_api/v10/projects/${projectId}/env`, {
+                    headers: { 'Authorization': `Bearer ${vercelToken}` }
+                });
+                if (existingRes.ok) {
+                    const existingData = await existingRes.json();
+                    const existingEnvs = existingData.envs || [];
+                    // Delete existing vars that match our keys to avoid duplicates
+                    const keysToUpdate = new Set(envVars.map(e => e.key));
+                    for (const env of existingEnvs) {
+                        if (keysToUpdate.has(env.key)) {
+                            await fetch(`/vercel_api/v10/projects/${projectId}/env/${env.id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${vercelToken}` }
+                            }).catch(() => {});
+                        }
+                    }
+                }
+                // Now add all env vars fresh
+                for (const ev of envVars) {
+                    await fetch(`/vercel_api/v10/projects/${projectId}/env`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${vercelToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            key: ev.key,
+                            value: ev.value,
+                            type: 'plain',
+                            target: ['production', 'preview', 'development']
+                        })
+                    }).catch(() => {});
+                }
+            } catch(e) {
+                console.warn('[Elivora] pushEnvVarsToVercel warning:', e);
+            }
+        }
 
-            if (!ghToken) {
-                showToast("GitHub Personal Access Token is required. Please configure in Settings.", "error");
+        // =====================================================================
+        // HELPER: Compute SHA1 hex string for Vercel file upload (Web Crypto API)
+        // =====================================================================
+        async function sha1Hex(uint8Array) {
+            const hashBuffer = await crypto.subtle.digest('SHA-1', uint8Array);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // =====================================================================
+        // HELPER: Fetch with retry logic for robust API calls
+        // =====================================================================
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, options);
+                    if (!res.ok && res.status >= 500) {
+                        if (i === retries - 1) return res;
+                        await new Promise(r => setTimeout(r, 1000 * (i + 1))); // exponential backoff
+                        continue;
+                    }
+                    return res;
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+                }
+            }
+        }
+
+        // --- Deploy Pipeline 2: Node.js / Dynamic App (Vercel — Direct File Upload) ---
+        // --- Error Banner Helpers ---
+        function showPipelineError(title, message) {
+            const banner = document.getElementById('pipelineErrorBanner');
+            const titleEl = document.getElementById('pipelineErrorTitle');
+            const msgEl = document.getElementById('pipelineErrorMessage');
+            if (banner && titleEl && msgEl) {
+                titleEl.innerText = title || "Deployment Pipeline Failed";
+                msgEl.innerText = message || "An unexpected error occurred during the process.";
+                banner.classList.remove('d-none');
+                banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            showToast(message, 'error');
+        }
+
+        function dismissPipelineError() {
+            const banner = document.getElementById('pipelineErrorBanner');
+            if (banner) banner.classList.add('d-none');
+        }
+
+        // --- Deploy Pipeline 2: Node.js / Dynamic App (GitHub Push + Vercel Deployment) ---
+        async function triggerVercelDeploy() {
+            dismissPipelineError();
+
+            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
+            const ghToken = (CONFIG.TOKEN || "").trim();
+
+            if (!vercelToken) {
+                showPipelineError("Authentication Missing", "Vercel Access Token is required. Please set it in Settings.");
                 return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
             }
-            if (!vercelToken) {
-                showToast("Vercel Access Token is required. Please configure in Settings.", "error");
+            if (!ghToken) {
+                showPipelineError("Authentication Missing", "GitHub Personal Access Token is required to push source code. Please configure it in Settings.");
                 return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
             }
 
             const rawName = document.getElementById('vercelProjectName').value.trim();
             if (!rawName) return showToast("Please enter a Project Name", "warning");
-            
+
             const cleanProjectName = rawName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
             if (!cleanProjectName) return showToast("Invalid Project Name. Use alphanumeric characters.", "warning");
 
@@ -2705,12 +3382,10 @@ CLOUD_HTML = r"""
                 pText.innerText = `${pct}%`;
                 sText.innerText = status;
                 tText.innerText = timeStr || "Calculating...";
-
-                // Sync with persistent floating widget
                 setGlobalFloatingProgress({
                     visible: true,
                     name: cleanProjectName,
-                    badge: 'ELIVORA',
+                    badge: 'NODE/VERCEL',
                     pct: pct,
                     status: status,
                     time: timeStr || "Calculating..."
@@ -2718,100 +3393,8 @@ CLOUD_HTML = r"""
             };
 
             try {
-                // 1. Verify credentials & obtain GitHub Username
-                updateVercelProgress(5, "Verifying GitHub & Vercel credentials...", "Starting...");
-                let ghUserData;
-                try {
-                    ghUserData = await ghFetch('/user');
-                    CONFIG.USERNAME = ghUserData.login;
-                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
-                } catch (e) {
-                    throw new Error("Invalid GitHub Personal Access Token.");
-                }
-
-                // 2. Call POST https://api.github.com/user/repos to create the repo and capture the repoId
-                updateVercelProgress(12, `Creating GitHub repository '${cleanProjectName}'...`, "Connecting...");
-                let repoData;
-                try {
-                    repoData = await ghFetch('/user/repos', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            name: cleanProjectName,
-                            auto_init: true,
-                            private: false,
-                            description: "Deployed via Elivora Cloud (Node.js Vercel Pipeline)"
-                        })
-                    });
-                } catch(e) {
-                    updateVercelProgress(15, `Fetching existing repository '${cleanProjectName}'...`, "Connecting...");
-                    repoData = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}`);
-                }
-
-                const repoId = repoData.id;
-                const repoFullName = repoData.full_name || `${CONFIG.USERNAME}/${cleanProjectName}`;
-                const defaultBranch = repoData.default_branch || 'main';
-
-                // 3. Extract .zip via JSZip and push all files to the new GitHub repo using PUT
-                updateVercelProgress(20, "Extracting codebase archive in browser...", "Decompressing...");
-                const zip = new JSZip();
-                const loadedZip = await zip.loadAsync(zipFile);
-                const filesToUpload = Object.keys(loadedZip.files).filter(k => {
-                    return !loadedZip.files[k].dir && !k.startsWith('__MACOSX') && !k.includes('.DS_Store');
-                });
-
-                if (filesToUpload.length === 0) throw new Error("Zip archive is empty.");
-
-                let commonPrefix = "";
-                const firstParts = filesToUpload[0].split('/');
-                if (firstParts.length > 1) {
-                    const candidatePrefix = firstParts[0] + '/';
-                    if (filesToUpload.every(f => f.startsWith(candidatePrefix))) {
-                        commonPrefix = candidatePrefix;
-                    }
-                }
-
-                uploadStartTime = performance.now();
-                for (let i = 0; i < filesToUpload.length; i++) {
-                    const rawPath = filesToUpload[i];
-                    const cleanPath = commonPrefix && rawPath.startsWith(commonPrefix) ? rawPath.substring(commonPrefix.length) : rawPath;
-                    if (!cleanPath) continue;
-
-                    const base64Data = await loadedZip.files[rawPath].async("base64");
-                    
-                    let sha = null;
-                    try {
-                        const existingFile = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}?ref=${defaultBranch}`);
-                        if (existingFile && existingFile.sha) sha = existingFile.sha;
-                    } catch (e) {}
-
-                    const putPayload = {
-                        message: `Deploy ${cleanPath} via Elivora Cloud`,
-                        content: base64Data,
-                        branch: defaultBranch
-                    };
-                    if (sha) putPayload.sha = sha;
-
-                    try {
-                        await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`, {
-                            method: 'PUT',
-                            body: JSON.stringify(putPayload)
-                        });
-                    } catch(e) {}
-
-                    const stepPct = 20 + Math.floor((i / filesToUpload.length) * 55);
-                    const realTime = calculateRealUploadTimeRemaining(i + 1, filesToUpload.length);
-                    updateVercelProgress(stepPct, `Pushing (${i + 1}/${filesToUpload.length}): ${cleanPath}`, realTime);
-                }
-
-                // 4. Call POST https://api.vercel.com/v11/projects using Vercel Token
-                updateVercelProgress(78, "Configuring Vercel v11 Project & Git link...", "Configuring cloud...");
                 const preset = document.getElementById('vercelPreset').value;
-                const frameworkMap = {
-                    "Next.js": "nextjs",
-                    "Vite": "vite",
-                    "React": "create-react-app",
-                    "Other": null
-                };
+                const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
                 const frameworkValue = frameworkMap[preset] || null;
                 const rootDir = document.getElementById('vercelRootDir').value.trim();
                 const buildCmd = document.getElementById('vercelBuildCommand').value.trim();
@@ -2819,46 +3402,148 @@ CLOUD_HTML = r"""
                 const installCmd = document.getElementById('vercelInstallCommand').value.trim();
                 const envVars = getEnvVariablesFromContainer('envRowsContainer');
 
-                const vercelProjectPayload = {
-                    name: cleanProjectName,
-                    gitRepository: {
-                        type: "github",
-                        repo: repoFullName
-                    }
-                };
-                if (frameworkValue) vercelProjectPayload.framework = frameworkValue;
-                if (rootDir && rootDir !== './' && rootDir !== '.') vercelProjectPayload.rootDirectory = rootDir;
-                if (buildCmd) vercelProjectPayload.buildCommand = buildCmd;
-                if (outputDir) vercelProjectPayload.outputDirectory = outputDir;
-                if (installCmd) vercelProjectPayload.installCommand = installCmd;
-                if (envVars.length > 0) vercelProjectPayload.environmentVariables = envVars;
-
-                let vercelProjRes = await fetch('https://api.vercel.com/v11/projects', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${vercelToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(vercelProjectPayload)
-                });
-
-                if (vercelProjRes.status === 409) {
-                    updateVercelProgress(82, "Project exists on Vercel. Updating settings...", "Configuring...");
-                    await fetch(`https://api.vercel.com/v9/projects/${cleanProjectName}`, {
-                        headers: { 'Authorization': `Bearer ${vercelToken}` }
-                    }).catch(() => {});
+                // 1. Resolve GitHub Identity
+                updateVercelProgress(5, "Verifying GitHub & Vercel credentials...", "Connecting...");
+                if (!CONFIG.USERNAME) {
+                    const ghUserData = await ghFetch('/user');
+                    CONFIG.USERNAME = ghUserData.login;
+                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
                 }
 
-                // 5. Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1 to trigger the build
-                updateVercelProgress(86, "Triggering Elivora Cloud Production Deployment...", "Triggering build...");
-                const vercelDeployPayload = {
+                // 2. Extract and Filter Zip Contents
+                updateVercelProgress(10, "Extracting and filtering package files...", "Decompressing...");
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(zipFile);
+                
+                // Exclude node_modules, .git, and platform artifacts
+                const rawPaths = Object.keys(loadedZip.files).filter(k => {
+                    const norm = k.replace(/\\/g, '/');
+                    return !loadedZip.files[k].dir && 
+                           !norm.startsWith('__MACOSX') && 
+                           !norm.includes('.DS_Store') &&
+                           !norm.includes('node_modules/') &&
+                           !norm.startsWith('node_modules/') &&
+                           !norm.includes('.git/') &&
+                           !norm.startsWith('.git/') &&
+                           !norm.includes('.next/') &&
+                           !norm.includes('dist/');
+                });
+
+                if (rawPaths.length === 0) {
+                    throw new Error("No deployable files found in ZIP archive (ignoring node_modules). Make sure your project files are at the root or within a top-level directory.");
+                }
+
+                // Identify common root folder if files are nested
+                let commonPrefix = "";
+                const firstParts = rawPaths[0].replace(/\\/g, '/').split('/');
+                if (firstParts.length > 1) {
+                    const candidate = firstParts[0] + '/';
+                    if (rawPaths.every(f => f.replace(/\\/g, '/').startsWith(candidate))) {
+                        commonPrefix = candidate;
+                    }
+                }
+
+                // 3. Create or Link GitHub Repository
+                updateVercelProgress(18, `Creating GitHub repository '${cleanProjectName}'...`, "Syncing GitHub...");
+                try {
+                    await ghFetch('/user/repos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: cleanProjectName,
+                            private: false,
+                            auto_init: true,
+                            description: "Deployed via Elivora Cloud Node.js Pipeline"
+                        })
+                    });
+                } catch(e) {
+                    // Check if repository already exists
+                    await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}`);
+                }
+
+                // 4. Push Codebase to GitHub
+                uploadStartTime = performance.now();
+                for (let i = 0; i < rawPaths.length; i++) {
+                    const rawPath = rawPaths[i];
+                    let normPath = rawPath.replace(/\\/g, '/');
+                    let cleanPath = commonPrefix && normPath.startsWith(commonPrefix) ? normPath.substring(commonPrefix.length) : normPath;
+                    cleanPath = cleanPath.replace(/^\/+/, '');
+                    if (!cleanPath) continue;
+
+                    const base64Data = await loadedZip.files[rawPath].async("base64");
+                    let sha = null;
+                    try {
+                        const fileInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`);
+                        if (fileInfo && fileInfo.sha) sha = fileInfo.sha;
+                    } catch(e) {}
+
+                    const putPayload = { message: `Deploy ${cleanPath} via Elivora Cloud`, content: base64Data };
+                    if (sha) putPayload.sha = sha;
+
+                    await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(putPayload)
+                    });
+
+                    const pct = 20 + Math.floor((i / rawPaths.length) * 35);
+                    const timeRem = calculateRealUploadTimeRemaining(i + 1, rawPaths.length);
+                    updateVercelProgress(pct, `GitHub Sync (${i+1}/${rawPaths.length}): ${cleanPath}`, timeRem);
+                }
+
+                // 5. Upload Files to Vercel File Store
+                updateVercelProgress(58, "Uploading codebase to Vercel Cloud Store...", "Uploading...");
+                const vercelFiles = [];
+                for (let i = 0; i < rawPaths.length; i++) {
+                    const rawPath = rawPaths[i];
+                    let normPath = rawPath.replace(/\\/g, '/');
+                    let cleanPath = commonPrefix && normPath.startsWith(commonPrefix) ? normPath.substring(commonPrefix.length) : normPath;
+                    cleanPath = cleanPath.replace(/^\/+/, '');
+                    if (!cleanPath) continue;
+
+                    const uint8 = await loadedZip.files[rawPath].async("uint8array");
+                    const sha1 = await sha1Hex(uint8);
+                    const size = uint8.length;
+
+                    await fetchWithRetry('/vercel_api/v2/files', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${vercelToken}`,
+                            'Content-Type': 'application/octet-stream',
+                            'x-now-digest': sha1,
+                            'x-now-size': String(size)
+                        },
+                        body: uint8
+                    });
+
+                    vercelFiles.push({ file: cleanPath, sha: sha1, size: size });
+                }
+
+                // 6. Create / Update Vercel Project
+                updateVercelProgress(75, "Configuring Vercel project & build commands...", "Configuring...");
+                const projPayload = { name: cleanProjectName };
+                if (frameworkValue) projPayload.framework = frameworkValue;
+                if (rootDir && rootDir !== './' && rootDir !== '.') projPayload.rootDirectory = rootDir;
+                if (buildCmd) projPayload.buildCommand = buildCmd;
+                if (outputDir) projPayload.outputDirectory = outputDir;
+                if (installCmd) projPayload.installCommand = installCmd;
+
+                await fetch('/vercel_api/v11/projects', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(projPayload)
+                });
+
+                // 7. Inject Environment Variables
+                if (envVars.length > 0) {
+                    updateVercelProgress(82, `Injecting ${envVars.length} environment variables...`, "Setting env...");
+                    await pushEnvVarsToVercel(cleanProjectName, envVars, vercelToken);
+                }
+
+                // 8. Trigger Vercel Production Build
+                updateVercelProgress(88, "Triggering build and container initialization...", "Deploying...");
+                const deployPayload = {
                     name: cleanProjectName,
+                    files: vercelFiles,
                     target: "production",
-                    gitSource: {
-                        type: "github",
-                        repoId: String(repoId),
-                        ref: defaultBranch
-                    },
                     projectSettings: {
                         framework: frameworkValue,
                         buildCommand: buildCmd || null,
@@ -2868,84 +3553,64 @@ CLOUD_HTML = r"""
                     }
                 };
 
-                let vercelDeployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
+                const deployRes = await fetch('/vercel_api/v13/deployments?skipAutoDetectionConfirmation=1', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${vercelToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(vercelDeployPayload)
+                    body: JSON.stringify(deployPayload)
                 });
 
-                if (!vercelDeployRes.ok) {
-                    const dErr = await vercelDeployRes.json().catch(() => ({}));
-                    throw new Error(dErr.error?.message || `Deployment API error (${vercelDeployRes.status})`);
+                if (!deployRes.ok) {
+                    const dErr = await deployRes.json().catch(() => ({}));
+                    throw new Error(dErr.error?.message || `Vercel Deployment error (HTTP ${deployRes.status}). Check build commands.`);
                 }
 
-                let dData = {};
-                let deploymentId = "";
-                let inspectorUrl = `https://vercel.com`;
-                let liveUrl = `https://${cleanProjectName}.vercel.app`;
-                let initialReadyState = 'BUILDING';
-
-                if (vercelDeployRes.ok) {
-                    dData = await vercelDeployRes.json();
-                    deploymentId = dData.id || "";
-                    inspectorUrl = dData.inspectorUrl || inspectorUrl;
-                    initialReadyState = dData.readyState || 'BUILDING';
-                    if (dData.url) {
-                        liveUrl = dData.url.startsWith('http') ? dData.url : `https://${dData.url}`;
-                    }
+            const dData = await deployRes.json();
+                const deploymentId = dData.id || "";
+                
+                // Extract the exact live production URL assigned by Vercel
+                let rawUrl = dData.url || (dData.alias && dData.alias[0]) || `${cleanProjectName}.vercel.app`;
+                if (dData.subdomain) {
+                    rawUrl = `${dData.subdomain}.vercel.app`;
                 }
+                const liveUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
 
-                // Create and store project record
                 const newProject = {
                     id: cleanProjectName,
                     deploymentId: deploymentId,
-                    url: `https://${cleanProjectName}.vercel.app`,
+                    url: liveUrl,
                     deploymentUrl: liveUrl,
-                    inspectorUrl: inspectorUrl,
+                    inspectorUrl: dData.inspectorUrl || "https://vercel.com",
                     github: `https://github.com/${CONFIG.USERNAME}/${cleanProjectName}`,
                     date: new Date().toISOString(),
-                    status: (initialReadyState === 'READY' ? 'live' : 'building'),
+                    status: (dData.readyState === 'READY' ? 'live' : 'building'),
                     platform: 'vercel',
                     preset: preset,
-                    config: {
-                        preset, rootDir, buildCmd, outputDir, installCmd, envVars
-                    }
+                    _vercelFiles: vercelFiles,
+                    config: { preset, rootDir, buildCmd, outputDir, installCmd, envVars }
                 };
 
                 saveVercelDeploymentRecord(newProject);
                 activeDeployments.add(cleanProjectName);
 
-                // Add to projects list
                 const existingIdx = projects.findIndex(p => p.id === cleanProjectName);
                 if (existingIdx >= 0) projects[existingIdx] = newProject;
                 else projects.unshift(newProject);
 
                 renderProjects();
                 renderAnalytics();
-
-                // Clear form
                 clearVercelFile();
                 document.getElementById('vercelProjectName').value = '';
 
-                // If Vercel is still building, initiate the real-time polling monitor!
-                if (deploymentId && initialReadyState !== 'READY') {
-                    showToast("Deployment queued on Vercel. Monitoring build progress...", "info");
+                if (deploymentId && dData.readyState !== 'READY') {
+                    showToast("Code pushed to GitHub & uploaded to Vercel. Polling deployment...", "info");
                     pollVercelBuildStatus(deploymentId, cleanProjectName);
                 } else {
-                    updateVercelProgress(100, "Vercel Deployment Live!", "Ready");
-                    showToast(`Deployed to Vercel: https://${cleanProjectName}.vercel.app`, "success");
-                    setGlobalFloatingProgress({
-                        visible: true,
-                        name: cleanProjectName,
-                        badge: 'ELIVORA',
-                        pct: 100,
-                        status: "Live & Ready!",
-                        time: "Ready",
-                        done: true
-                    });
+                    updateVercelProgress(100, "Live and Ready!", "Ready");
+                    showToast(`Deployment ready at ${liveUrl}`, "success");
+                    setGlobalFloatingProgress({ visible: true, name: cleanProjectName, badge: 'NODE/VERCEL', pct: 100, status: "Live & Ready!", time: "Ready", done: true });
                     setTimeout(() => setGlobalFloatingProgress({ visible: false }), 4000);
                 }
 
@@ -2953,7 +3618,7 @@ CLOUD_HTML = r"""
 
             } catch (err) {
                 console.error("Vercel pipeline failure:", err);
-                showToast(err.message || "Failed to deploy to Vercel", "error");
+                showPipelineError("Pipeline Execution Error", err.message || "An unexpected error stopped the deployment.");
                 setGlobalFloatingProgress({ visible: false });
             } finally {
                 deployBtn.disabled = false;
@@ -2977,7 +3642,7 @@ CLOUD_HTML = r"""
                 const estRemaining = Math.max(5, 55 - elapsedSec);
 
                 try {
-                    const res = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
+                    const res = await fetch(`/vercel_api/v13/deployments/${deploymentId}`, {
                         headers: { 'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}` }
                     });
 
@@ -2999,7 +3664,10 @@ CLOUD_HTML = r"""
                             if (state === 'READY') {
                                 clearInterval(pollInterval);
                                 proj.status = 'live';
-                                proj.url = `https://${cleanProjectName}.vercel.app`;
+                                
+                                // Grab the exact working domain from Vercel's status response
+                                let activeDomain = data.url || (data.alias && data.alias[0]) || `${cleanProjectName}.vercel.app`;
+                                proj.url = activeDomain.startsWith('http') ? activeDomain : `https://${activeDomain}`;
                                 saveVercelDeploymentRecord(proj);
                                 renderProjects();
 
@@ -3057,8 +3725,9 @@ CLOUD_HTML = r"""
             const proj = savedList.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
             if (!proj) return showToast("Project details not found for re-deploy", "error");
 
-            if (!CONFIG.TOKEN || !CONFIG.VERCEL_TOKEN) {
-                return showToast("Please configure your GitHub and Vercel tokens in Settings.", "error");
+            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
+            if (!vercelToken) {
+                return showToast("Please configure your Vercel Access Token in Settings.", "error");
             }
 
             startCardProcess(projectId, "Triggering Auto Re-Deploy...");
@@ -3067,48 +3736,70 @@ CLOUD_HTML = r"""
                 name: projectId,
                 badge: 'ELIVORA',
                 pct: 15,
-                status: "Requesting fresh Vercel build...",
+                status: "Preparing Vercel re-deployment...",
                 time: "Starting..."
             });
 
             try {
-                // Fetch GitHub repo details to get current default branch
-                const repoInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${projectId}`);
-                const repoId = repoInfo.id;
-                const defaultBranch = repoInfo.default_branch || 'main';
-
-                // Retrieve saved project configuration for projectSettings
                 const pConfig = proj.config || {};
-                const frameworkMap = {
-                    "Next.js": "nextjs",
-                    "Vite": "vite",
-                    "React": "create-react-app",
-                    "Other": null
-                };
+                const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
                 const frameworkVal = frameworkMap[pConfig.preset] || null;
 
-                // Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1
-                const vercelDeployPayload = {
-                    name: projectId,
-                    target: "production",
-                    gitSource: {
-                        type: "github",
-                        repoId: String(repoId),
-                        ref: defaultBranch
-                    },
-                    projectSettings: {
-                        framework: frameworkVal,
-                        buildCommand: pConfig.buildCmd || null,
-                        outputDirectory: pConfig.outputDir || null,
-                        installCommand: pConfig.installCmd || null,
-                        rootDirectory: (pConfig.rootDir && pConfig.rootDir !== './' && pConfig.rootDir !== '.') ? pConfig.rootDir : null
-                    }
+                const projectSettings = {
+                    framework: frameworkVal,
+                    buildCommand: pConfig.buildCmd || null,
+                    outputDirectory: pConfig.outputDir || null,
+                    installCommand: pConfig.installCmd || null,
+                    rootDirectory: (pConfig.rootDir && pConfig.rootDir !== './' && pConfig.rootDir !== '.') ? pConfig.rootDir : null
                 };
 
-                const deployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
+                // Push env vars to Vercel before redeploying (if any saved)
+                const savedEnvVars = pConfig.envVars || [];
+                if (savedEnvVars.length > 0) {
+                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 25, status: "Pushing env vars to Vercel...", time: "Configuring..." });
+                    await pushEnvVarsToVercel(projectId, savedEnvVars, vercelToken);
+                }
+
+                let vercelDeployPayload;
+
+                // Strategy 1: Use stored Vercel files list (direct re-upload, no GitHub needed)
+                if (proj._vercelFiles && proj._vercelFiles.length > 0) {
+                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 50, status: "Re-deploying from stored files...", time: "Building..." });
+                    vercelDeployPayload = {
+                        name: projectId,
+                        files: proj._vercelFiles,
+                        target: "production",
+                        projectSettings
+                    };
+                }
+                // Strategy 2: Use GitHub source (requires GitHub token + GitHub-Vercel integration)
+                else if (CONFIG.TOKEN && CONFIG.USERNAME) {
+                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 40, status: "Fetching GitHub repo info...", time: "Connecting..." });
+                    const repoInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${projectId}`);
+                    const repoId = repoInfo.id;
+                    const defaultBranch = repoInfo.default_branch || 'main';
+                    vercelDeployPayload = {
+                        name: projectId,
+                        target: "production",
+                        gitSource: { type: "github", repoId: String(repoId), ref: defaultBranch },
+                        projectSettings
+                    };
+                }
+                // Strategy 3: Trigger re-deploy from Vercel's last known deployment
+                else {
+                    // Just re-trigger from latest deployment on Vercel
+                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 50, status: "Triggering Vercel re-build...", time: "Building..." });
+                    vercelDeployPayload = {
+                        name: projectId,
+                        target: "production",
+                        projectSettings
+                    };
+                }
+
+                const deployRes = await fetch('/vercel_api/v13/deployments?skipAutoDetectionConfirmation=1', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
+                        'Authorization': `Bearer ${vercelToken}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(vercelDeployPayload)
@@ -3116,7 +3807,7 @@ CLOUD_HTML = r"""
 
                 if (!deployRes.ok) {
                     const err = await deployRes.json().catch(() => ({}));
-                    throw new Error(err.error?.message || "Failed to trigger Vercel deployment");
+                    throw new Error(err.error?.message || `Re-deploy failed (HTTP ${deployRes.status}). Try uploading a new zip.`);
                 }
 
                 const dData = await deployRes.json();
@@ -3130,7 +3821,7 @@ CLOUD_HTML = r"""
                 updateCardUI(projectId);
 
                 finishCardProcess(projectId, "Build Triggered!");
-                showToast(`Auto Re-Deploy triggered for ${projectId}! Monitoring build...`, 'info');
+                showToast(`🔄 Re-deploy triggered for ${projectId}! Monitoring build...`, 'info');
 
                 pollVercelBuildStatus(deploymentId, projectId);
 
@@ -3208,19 +3899,18 @@ CLOUD_HTML = r"""
 
             closeModals();
 
-            // Update Vercel project configuration via API
-            showToast("Updating Vercel cloud project settings...", "info");
+            showToast("Updating Vercel cloud project settings & env vars...", "info");
             try {
                 const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
+                // 1. Update project build settings via PATCH
                 const updatePayload = {};
                 if (frameworkMap[preset] !== undefined) updatePayload.framework = frameworkMap[preset];
                 if (rootDir) updatePayload.rootDirectory = rootDir === './' ? null : rootDir;
                 if (buildCmd) updatePayload.buildCommand = buildCmd;
                 if (outputDir) updatePayload.outputDirectory = outputDir;
                 if (installCmd) updatePayload.installCommand = installCmd;
-                if (envVars.length > 0) updatePayload.environmentVariables = envVars;
 
-                await fetch(`https://api.vercel.com/v9/projects/${projectId}`, {
+                await fetch(`/vercel_api/v9/projects/${projectId}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
@@ -3228,7 +3918,15 @@ CLOUD_HTML = r"""
                     },
                     body: JSON.stringify(updatePayload)
                 }).catch(() => {});
-            } catch(e) {}
+
+                // 2. Push env vars using the correct Vercel env API (POST /v10/projects/:id/env)
+                if (envVars.length > 0) {
+                    await pushEnvVarsToVercel(projectId, envVars, CONFIG.VERCEL_TOKEN);
+                    showToast(`✅ Pushed ${envVars.length} env var(s) to Vercel successfully!`, "success");
+                }
+            } catch(e) {
+                console.warn('Settings update warning:', e);
+            }
 
             // Now trigger fresh deployment
             await triggerAutoRedeploy(projectId);
@@ -3595,19 +4293,70 @@ CLOUD_HTML = r"""
         async function executeConfirmedDelete() {
             closeModals();
             const id = targetDeleteId;
-            startCardProcess(id, "Deleting Repository...");
-            try {
-                await ghFetch(`/repos/${CONFIG.USERNAME}/${id}`, { method: 'DELETE' });
-                // Also remove from saved vercel
-                const vList = getSavedVercelDeployments().filter(x => x.id !== id);
-                localStorage.setItem('elivora_vercel_projects', JSON.stringify(vList));
-                projects = projects.filter(x => x.id !== id);
-                finishCardProcess(id, "Deleted", true);
-                showToast(`Repository ${id} deleted`, 'info');
-                renderAnalytics();
-            } catch (err) {
-                failCardProcess(id, err.message);
+            startCardProcess(id, "Deleting Deployment & Repo...");
+
+            let githubDeleted = false;
+            let vercelDeleted = false;
+            let warningNotes = [];
+
+            // 1. Delete from GitHub if token is present
+            if (CONFIG.TOKEN) {
+                try {
+                    if (!CONFIG.USERNAME) {
+                        const uData = await ghFetch('/user').catch(() => null);
+                        if (uData) CONFIG.USERNAME = uData.login;
+                    }
+                    if (CONFIG.USERNAME) {
+                        await ghFetch(`/repos/${CONFIG.USERNAME}/${id}`, { method: 'DELETE' });
+                        githubDeleted = true;
+                    }
+                } catch (ghErr) {
+                    if (ghErr.message.includes('404')) {
+                        githubDeleted = true; // Repo already gone on GitHub
+                    } else if (ghErr.message.includes('403') || ghErr.message.includes('Must have admin rights')) {
+                        warningNotes.push("GitHub PAT requires 'delete_repo' scope to delete from GitHub directly.");
+                    } else {
+                        warningNotes.push(`GitHub: ${ghErr.message}`);
+                    }
+                }
             }
+
+            // 2. Delete from Vercel if Vercel token is present
+            if (CONFIG.VERCEL_TOKEN) {
+                try {
+                    const vRes = await fetch(`/vercel_api/v9/projects/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}` }
+                    });
+                    if (vRes.ok || vRes.status === 404) {
+                        vercelDeleted = true;
+                    } else {
+                        const vErr = await vRes.json().catch(() => ({}));
+                        warningNotes.push(`Vercel: ${vErr.error?.message || vRes.status}`);
+                    }
+                } catch(e) {
+                    warningNotes.push(`Vercel: ${e.message}`);
+                }
+            }
+
+            // 3. Clear from local storage and cache regardless
+            const vList = getSavedVercelDeployments().filter(x => x.id !== id);
+            localStorage.setItem('elivora_vercel_projects', JSON.stringify(vList));
+            
+            delete localStatuses[id];
+            localStorage.setItem('elivora_statuses', JSON.stringify(localStatuses));
+
+            projects = projects.filter(x => x.id !== id);
+            activeDeployments.delete(id);
+
+            finishCardProcess(id, "Deleted", true);
+
+            if (warningNotes.length > 0) {
+                showToast(`Project removed locally. (${warningNotes.join(' | ')})`, 'warning');
+            } else {
+                showToast(`Deployment '${id}' deleted successfully from all platforms.`, 'success');
+            }
+            renderAnalytics();
         }
 
         function openRenameModal(oldName) {
@@ -3769,11 +4518,60 @@ CLOUD_HTML = r"""
 </html>
 
 """
+
 # =====================================================================
 # LOCAL WEB SERVER & API HANDLER
 # =====================================================================
 class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
+    def do_vercel_proxy(self, method):
+        content_length = int(self.headers.get('Content-Length', 0))
+        post_data = self.rfile.read(content_length) if content_length > 0 else None
+        
+        target_url = "https://api.vercel.com" + self.path.replace("/vercel_api", "")
+        req = urllib.request.Request(target_url, data=post_data, method=method)
+        
+        for h in ['Authorization', 'Content-Type', 'x-now-digest', 'x-now-size']:
+            if h in self.headers:
+                req.add_header(h, self.headers[h])
+                
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                body = response.read()
+                self.send_response(response.status)
+                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/json'))
+                self.end_headers()
+                self.wfile.write(body)
+        except Exception as e:
+            if hasattr(e, 'code') and hasattr(e, 'read'):
+                self.send_response(e.code)
+                self.send_header('Content-Type', e.headers.get('Content-Type', 'application/json') if hasattr(e, 'headers') else 'application/json')
+                self.end_headers()
+                self.wfile.write(e.read())
+            else:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": {"message": str(e)}}).encode('utf-8'))
+
+    def do_PATCH(self):
+        if self.path.startswith('/vercel_api/'):
+            self.do_vercel_proxy('PATCH')
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_DELETE(self):
+        if self.path.startswith('/vercel_api/'):
+            self.do_vercel_proxy('DELETE')
+            return
+        self.send_response(404)
+        self.end_headers()
+
     def do_GET(self):
+        if self.path.startswith('/vercel_api/'):
+            self.do_vercel_proxy('GET')
+            return
+            
         parsed_path = urllib.parse.urlparse(self.path)
         
         if parsed_path.path == '/':
@@ -3793,9 +4591,25 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             
             # Safely grab the token from the .env file and inject it into the HTML
             gh_token = os.environ.get("GITHUB_DEFAULT_TOKEN", "")
-            gh_token = os.environ.get("GITHUB_DEFAULT_TOKEN", "")
+            gh_user = os.environ.get("GITHUB_DEFAULT_USER", "")
             vercel_token = os.environ.get("VERCEL_DEFAULT_TOKEN", "")
-            final_html = CLOUD_HTML.replace('{{GITHUB_TOKEN_PLACEHOLDER}}', gh_token).replace('{{VERCEL_TOKEN_PLACEHOLDER}}', vercel_token)
+            fb_api_key = os.environ.get("FIREBASE_API_KEY", "")
+            fb_auth_domain = os.environ.get("FIREBASE_AUTH_DOMAIN", "")
+            fb_project_id = os.environ.get("FIREBASE_PROJECT_ID", "")
+            fb_storage_bucket = os.environ.get("FIREBASE_STORAGE_BUCKET", "")
+            fb_sender_id = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "")
+            fb_app_id = os.environ.get("FIREBASE_APP_ID", "")
+            final_html = (CLOUD_HTML
+                .replace('{{GITHUB_TOKEN_PLACEHOLDER}}', gh_token)
+                .replace('{{GITHUB_USERNAME_PLACEHOLDER}}', gh_user)
+                .replace('{{VERCEL_TOKEN_PLACEHOLDER}}', vercel_token)
+                .replace('{{FIREBASE_API_KEY}}', fb_api_key)
+                .replace('{{FIREBASE_AUTH_DOMAIN}}', fb_auth_domain)
+                .replace('{{FIREBASE_PROJECT_ID}}', fb_project_id)
+                .replace('{{FIREBASE_STORAGE_BUCKET}}', fb_storage_bucket)
+                .replace('{{FIREBASE_MESSAGING_SENDER_ID}}', fb_sender_id)
+                .replace('{{FIREBASE_APP_ID}}', fb_app_id)
+            )
             
             self.wfile.write(final_html.encode('utf-8'))
             
@@ -3845,6 +4659,10 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if self.path.startswith('/vercel_api/'):
+            self.do_vercel_proxy('POST')
+            return
+            
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == '/send_message':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -3866,12 +4684,12 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format, *args): pass 
-
+    def log_message(self, format, *args): pass
+            
 def start_web_server():
     PORT = 8080
     class ReusableTCPServer(socketserver.ThreadingTCPServer): allow_reuse_address = True
-    httpd = ReusableTCPServer(("127.0.0.1", PORT), WebDashboardHandler)
+    httpd = ReusableTCPServer(("localhost", PORT), WebDashboardHandler)
     httpd.serve_forever()
 
 # =====================================================================
@@ -4068,7 +4886,7 @@ if __name__ == "__main__":
     api = WebviewAPI()
     webview_window = webview.create_window(
         title='ELIVORA HUB', 
-        url='http://127.0.0.1:8080',
+        url='http://localhost:8080',
         js_api=api,
         width=1280, 
         height=800,

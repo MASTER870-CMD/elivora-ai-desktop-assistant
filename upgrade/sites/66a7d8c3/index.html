@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Global Edge Hosting</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <div id="auth-view" class="auth-layout view-section">
+        <div class="auth-left">
+            <div class="brand-hero">
+                <div class="logo-white">⚡ Nexus</div>
+                <h1>Deploy your web apps in seconds.</h1>
+                <p>Join developers hosting their static sites globally with a clean, zero-configuration platform.</p>
+            </div>
+        </div>
+        
+        <div class="auth-right">
+            <div class="auth-form-container">
+                <h2 id="auth-title">Welcome back</h2>
+                <p id="auth-subtitle" class="text-muted mb-4">Enter your details to access your dashboard.</p>
+                
+                <form id="auth-form">
+                    <div class="input-group">
+                        <label for="username">Username or Email</label>
+                        <input type="text" id="username" placeholder="developer@example.com" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100" id="auth-submit-btn">Sign In</button>
+                </form>
+                
+                <div id="auth-error" class="alert-box error hidden mt-3"></div>
+                <div id="auth-success" class="alert-box success hidden mt-3"></div>
+                
+                <p class="toggle-text mt-4">
+                    <span id="toggle-auth-msg">Don't have an account?</span> 
+                    <a href="#" id="toggle-auth-link" class="link-primary">Sign up</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-view" class="view-section hidden">
+        <nav class="navbar">
+            <div class="container nav-content">
+                <div class="logo">⚡ Nexus</div>
+                <div class="user-menu">
+                    <span id="nav-username" class="avatar-text"></span>
+                    <button id="logout-btn" class="btn btn-outline-sm">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div id="dashboard-view" class="container mt-5">
+            <div class="header-action">
+                <div>
+                    <h2>Overview</h2>
+                    <p class="text-muted">Manage your deployed applications.</p>
+                </div>
+                <button id="show-upload-btn" class="btn btn-primary shadow-sm">+ New Project</button>
+            </div>
+
+            <div id="projects-grid" class="projects-grid mt-4">
+                </div>
+        </div>
+
+        <div id="upload-view" class="container mt-5 hidden">
+            <div class="header-action mb-4">
+                <h2>Deploy New Project</h2>
+                <button id="cancel-upload-btn" class="btn btn-text">Cancel</button>
+            </div>
+            
+            <div class="card p-5 text-center">
+                <div id="upload-zone" class="upload-zone">
+                    <div class="upload-icon mb-3">📁</div>
+                    <h3 class="mb-2">Drag and drop your .zip file</h3>
+                    <p class="text-muted">Must contain an index.html file in the root.</p>
+                    <input type="file" id="file-input" accept=".zip" hidden>
+                </div>
+
+                <div id="status-ui" class="hidden py-4">
+                    <div class="spinner mb-3"></div>
+                    <h3 id="status-text">Uploading to global edge...</h3>
+                    <div class="progress-bar mt-3"><div id="progress-fill" class="progress-fill"></div></div>
+                </div>
+                
+                <div id="upload-error" class="alert-box error hidden mt-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

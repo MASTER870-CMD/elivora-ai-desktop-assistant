@@ -1,9 +1,8 @@
 opencv-python
-PyAudio
+pyaudio
 Pillow
 psutil
 pywebview
 numpy
-PyAutoGUI
+pyautogui
 google-genai
-python-dotenv
