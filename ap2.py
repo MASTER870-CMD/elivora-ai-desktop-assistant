@@ -4088,9 +4088,10 @@ class AudioLoop:
                     safe_name = "mcp1_" + tool.name.replace("-", "_")
                     self.mcp_tool_map[safe_name] = (tool.name, session1)
                     if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
+                        desc = f"[DESKTOP CONTROL - Use this to interact with the user's VISIBLE screen, apps, and windows] {tool.description or ''}"
                         fd = types.FunctionDeclaration(
                             name=safe_name,
-                            description=tool.description[:1000] if tool.description else "",
+                            description=desc[:1000],
                             parameters=dict_to_schema(tool.input_schema)
                         )
                         CONFIG.tools[0].function_declarations.append(fd)
@@ -4114,9 +4115,10 @@ class AudioLoop:
                     safe_name = "mcp2_" + tool.name.replace("-", "_")
                     self.mcp_tool_map[safe_name] = (tool.name, session2)
                     if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
+                        desc = f"[HEADLESS WEB SCRAPER - Use ONLY for invisible background web data extraction, NOT for controlling user's visible browser] {tool.description or ''}"
                         fd = types.FunctionDeclaration(
                             name=safe_name,
-                            description=tool.description[:1000] if tool.description else "",
+                            description=desc[:1000],
                             parameters=dict_to_schema(tool.input_schema)
                         )
                         CONFIG.tools[0].function_declarations.append(fd)
