@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Cloud Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">⚡ Nexus Cloud</div>
+            <div id="nav-user-controls" class="hidden">
+                <span id="nav-username" class="username-badge"></span>
+                <button id="logout-btn" class="btn btn-text">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="auth-view" class="container view-section">
+        <div class="card auth-card">
+            <h2 id="auth-title">Login</h2>
+            <p id="auth-subtitle">Welcome back to Nexus Cloud</p>
+            
+            <form id="auth-form">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit" class="btn btn-primary w-100 mt-2" id="auth-submit-btn">Login</button>
+            </form>
+            
+            <div id="auth-error" class="error-msg hidden"></div>
+            
+            <p class="toggle-text mt-3">
+                <span id="toggle-auth-msg">Don't have an account?</span> 
+                <a href="#" id="toggle-auth-link">Sign up</a>
+            </p>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="container view-section hidden">
+        <div class="dashboard-header">
+            <h2>My Projects</h2>
+            <button id="show-upload-btn" class="btn btn-primary">+ New Deployment</button>
+        </div>
+
+        <div id="projects-grid" class="grid">
+            </div>
+    </div>
+
+    <div id="upload-view" class="container view-section hidden">
+        <div class="card">
+            <div class="dashboard-header">
+                <h2>Deploy New Site</h2>
+                <button id="cancel-upload-btn" class="btn btn-text">Cancel</button>
+            </div>
+            
+            <div id="upload-zone" class="upload-zone">
+                <div class="icon">📁</div>
+                <h3>Drag & Drop your .zip file</h3>
+                <p>Ensure an index.html file is included</p>
+                <input type="file" id="file-input" accept=".zip" hidden>
+            </div>
+
+            <div id="status-ui" class="hidden text-center py-2">
+                <h3 id="status-text">Deploying...</h3>
+                <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            </div>
+            <div id="upload-error" class="error-msg hidden mt-2 text-center"></div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

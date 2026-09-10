@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Cloud | Central Administration</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        /* Premium Corporate UI - No Purple */
+        :root {
+            --primary-corporate: #0d47a1; 
+            --primary-hover: #08306b;
+            --sidebar-bg: #111827;
+            --sidebar-hover: #1f2937;
+            --bg-slate: #f3f4f6;
+            --text-dark: #111827;
+            --pure-white: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg-slate);
+            color: var(--text-dark);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        #wrapper { display: flex; width: 100vw; height: 100vh; }
+
+        #sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: var(--pure-white);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            padding: 20px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-link-custom {
+            color: rgba(255,255,255,0.7);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-link-custom:hover, .nav-link-custom.active {
+            color: var(--pure-white);
+            background-color: var(--sidebar-hover);
+            border-left-color: var(--primary-corporate);
+        }
+
+        .nav-link-custom i { margin-right: 12px; font-size: 1.1rem; }
+
+        #page-content-wrapper { flex-grow: 1; overflow-y: auto; padding: 30px; }
+
+        .stat-card {
+            background: var(--pure-white);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            padding: 20px;
+        }
+
+        .table-container {
+            background: var(--pure-white);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            margin-top: 20px;
+        }
+
+        .table th {
+            font-weight: 600; font-size: 0.85rem;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .btn-corporate { background-color: var(--primary-corporate); color: var(--pure-white); border: none; font-weight: 500; }
+        .btn-corporate:hover { background-color: var(--primary-hover); color: var(--pure-white); }
+        .img-thumbnail-custom { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
+
+        @media (max-width: 768px) {
+            #sidebar { position: fixed; height: 100%; transform: translateX(-100%); }
+            #sidebar.show { transform: translateX(0); }
+            #page-content-wrapper { padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="wrapper">
+        <nav id="sidebar">
+            <div class="sidebar-brand"><i class="bi bi-hdd-network"></i> NEXUS ADMIN</div>
+            <div class="mt-3 flex-grow-1">
+                <div class="px-3 mb-2 text-uppercase" style="font-size: 0.75rem; color: #888;">Databases</div>
+                <a class="nav-link-custom active" data-target="users" onclick="switchCollection('users', this)">
+                    <i class="bi bi-people"></i> User Management
+                </a>
+                <a class="nav-link-custom" data-target="books" onclick="switchCollection('books', this)">
+                    <i class="bi bi-journal-richtext"></i> Library / Books
+                </a>
+            </div>
+        </nav>
+
+        <div id="page-content-wrapper">
+            <button class="btn btn-dark d-md-none mb-3" id="menuToggle"><i class="bi bi-list"></i> Menu</button>
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div>
+                    <h2 class="fw-bold mb-0" id="pageTitle">Loading...</h2>
+                    <p class="text-muted mb-0">Managing <span id="subTitleName">database</span>.</p>
+                </div>
+                <button class="btn btn-corporate shadow-sm" data-bs-toggle="modal" data-bs-target="#dynamicModal" id="addNewBtn">
+                    <i class="bi bi-plus-lg"></i> Add New Record
+                </button>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-md-4">
+                    <div class="stat-card d-flex align-items-center">
+                        <div class="me-4" style="font-size: 2.5rem; color: var(--primary-corporate);"><i class="bi bi-database"></i></div>
+                        <div>
+                            <h6 class="text-muted mb-1 text-uppercase">Total Records</h6>
+                            <h3 class="fw-bold mb-0" id="totalRecordsCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="dataTable">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody">
+                            <tr><td colspan="10" class="text-center py-4 text-muted">Loading data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dynamicModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light border-0">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Add Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="dynamicForm">
+                        <input type="hidden" id="recordId">
+                        <div class="row" id="formInputsContainer">
+                            </div>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-corporate py-2" id="saveBtn">Save Record</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot } 
+        from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        // ==========================================
+        // INSERT YOUR EXACT API KEY HERE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY", // <--- FIX THIS
+            authDomain: "lib-proj-f525c.firebaseapp.com",
+            projectId: "lib-proj-f525c",
+            storageBucket: "lib-proj-f525c.firebasestorage.app",
+            messagingSenderId: "246853326180",
+            appId: "1:246853326180:web:c75d46443f2cedb8ee3e71"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // ==========================================
+        // SCHEMA - Perfectly matched to your Firestore screenshots
+        // ==========================================
+        const schemas = {
+            users: {
+                title: "User Management",
+                fields: [
+                    { id: 'name', label: 'Full Name', type: 'text', inTable: true },
+                    { id: 'username', label: 'Username', type: 'text', inTable: true },
+                    { id: 'phone', label: 'Phone Number', type: 'text', inTable: true },
+                    { id: 'role', label: 'Access Role', type: 'select', options: ['Admin', 'User'], inTable: true },
+                    { id: 'password', label: 'Password', type: 'text', inTable: false }
+                ]
+            },
+            books: {
+                title: "Library Management",
+                fields: [
+                    { id: 'image', label: 'Book Cover Image', type: 'image', inTable: true },
+                    { id: 'title', label: 'Book Title', type: 'text', inTable: true },
+                    { id: 'author', label: 'Author Name', type: 'text', inTable: true },
+                    { id: 'category', label: 'Category', type: 'text', inTable: true },
+                    { id: 'status', label: 'Status', type: 'select', options: ['issued', 'available', 'reserved'], inTable: true },
+                    { id: 'qty', label: 'Total Quantity', type: 'number', inTable: false },
+                    { id: 'likesCount', label: 'Likes Count', type: 'number', inTable: false },
+                    { id: 'isReserved', label: 'Is Reserved?', type: 'select', options: ['true', 'false'], inTable: false },
+                    { id: 'reservedBy', label: 'Reserved By (Name)', type: 'text', inTable: false }
+                ]
+            }
+        };
+
+        let currentCollection = 'users';
+        let unsubscribe = null;
+        const modalInstance = new bootstrap.Modal(document.getElementById('dynamicModal'));
+
+        document.getElementById('menuToggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('show');
+        });
+
+        // 1. SWITCH COLLECTION
+        window.switchCollection = (collectionName, element = null) => {
+            currentCollection = collectionName;
+            const schema = schemas[currentCollection];
+
+            document.getElementById('pageTitle').innerText = schema.title;
+            document.getElementById('subTitleName').innerText = collectionName;
+            
+            document.querySelectorAll('.nav-link-custom').forEach(link => link.classList.remove('active'));
+            if(element) {
+                element.classList.add('active');
+            } else {
+                document.querySelector(`[data-target="${collectionName}"]`).classList.add('active');
+            }
+            
+            if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('show');
+
+            buildTableHeaders(schema);
+            buildFormInputs(schema);
+            loadData(collectionName, schema);
+        };
+
+        // 2. BUILD TABLE HEADERS (Only fields marked inTable: true)
+        function buildTableHeaders(schema) {
+            let html = `<tr><th>ID</th>`;
+            schema.fields.filter(f => f.inTable).forEach(field => html += `<th>${field.label.split('(')[0]}</th>`);
+            html += `<th class="text-end">Actions</th></tr>`;
+            document.getElementById('tableHead').innerHTML = html;
+        }
+
+        // 3. BUILD FORM INPUTS (All fields go in the modal)
+        function buildFormInputs(schema) {
+            const container = document.getElementById('formInputsContainer');
+            container.innerHTML = ''; 
+            schema.fields.forEach(field => {
+                const div = document.createElement('div');
+                div.className = 'col-md-6 mb-3';
+                let inputHTML = '';
+                
+                if (field.type === 'select') {
+                    const options = field.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                    inputHTML = `<select class="form-select dynamic-input" id="${field.id}">
+                                    <option value="" disabled selected>Select...</option>${options}
+                                 </select>`;
+                } else if (field.type === 'image') {
+                    inputHTML = `
+                        <input type="hidden" id="${field.id}_data">
+                        <input type="file" class="form-control" id="${field.id}_file" accept="image/*">
+                        <div id="${field.id}_preview" class="mt-2 text-center text-muted small"></div>
+                        <small class="text-muted d-block mt-1">Leave empty to keep existing image</small>
+                    `;
+                } else if (field.type === 'number') {
+                    inputHTML = `<input type="number" class="form-control dynamic-input" id="${field.id}">`;
+                } else {
+                    inputHTML = `<input type="text" class="form-control dynamic-input" id="${field.id}">`;
+                }
+                
+                div.innerHTML = `<label class="form-label fw-semibold">${field.label}</label>${inputHTML}`;
+                container.appendChild(div);
+            });
+        }
+
+        // 4. LOAD DATA FROM FIRESTORE
+        function loadData(collectionName, schema) {
+            if (unsubscribe) unsubscribe(); 
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4"><div class="spinner-border spinner-border-sm text-primary"></div> Loading...</td></tr>`;
+
+            unsubscribe = onSnapshot(collection(db, collectionName), (snapshot) => {
+                tbody.innerHTML = '';
+                document.getElementById('totalRecordsCount').innerText = snapshot.size;
+
+                if (snapshot.empty) {
+                    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted">No records found.</td></tr>`;
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const tr = document.createElement('tr');
+                    let rowHTML = `<td class="text-muted font-monospace" style="font-size: 0.85rem;">${docSnap.id.substring(0, 5)}</td>`;
+                    
+                    // Only populate the columns that belong in the table view
+                    schema.fields.filter(f => f.inTable).forEach(field => {
+                        if (field.type === 'image') {
+                            let imgData = data[field.id] || data['coverImageBase64']; // Fallback in case it's saved under coverImageBase64
+                            rowHTML += `<td>${imgData ? `<img src="${imgData}" class="img-thumbnail-custom">` : `<span class="badge bg-light text-dark border">No Image</span>`}</td>`;
+                        } else {
+                            let value = data[field.id] !== undefined && data[field.id] !== "" ? data[field.id] : '<span class="text-danger small">Empty</span>';
+                            rowHTML += `<td>${value}</td>`;
+                        }
+                    });
+
+                    const safeData = encodeURIComponent(JSON.stringify(data));
+                    rowHTML += `
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-2" onclick="editRecord('${docSnap.id}', '${safeData}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord('${docSnap.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tr.innerHTML = rowHTML;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        // BASE64 CONVERTER
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        // 5. SAVE DATA
+        document.getElementById('dynamicForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('recordId').value;
+            const schema = schemas[currentCollection];
+            const newRecord = { updatedAt: new Date().toISOString() }; // Matching your string date format
+            const btn = document.getElementById('saveBtn');
+            
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...'; 
+            btn.disabled = true;
+
+            try {
+                for (const field of schema.fields) {
+                    if (field.type === 'image') {
+                        const fileInput = document.getElementById(`${field.id}_file`);
+                        const hiddenInput = document.getElementById(`${field.id}_data`);
+                        
+                        if (fileInput.files.length > 0) {
+                            const file = fileInput.files[0];
+                            if (file.size > 500000) { 
+                                alert(`Image is too large! Please use images under 500KB.`);
+                                btn.innerHTML = 'Save Record'; btn.disabled = false; return; 
+                            }
+                            const base64String = await convertFileToBase64(file);
+                            newRecord[field.id] = base64String;
+                            newRecord['coverImageBase64'] = base64String; // Saving to both fields just to be safe based on your DB
+                        } else {
+                            newRecord[field.id] = hiddenInput.value; 
+                        }
+                    } else if (field.type === 'number') {
+                        newRecord[field.id] = Number(document.getElementById(field.id).value);
+                    } else if (field.id === 'isReserved') {
+                        // Convert string true/false to actual boolean
+                        newRecord[field.id] = document.getElementById(field.id).value === 'true';
+                    } else {
+                        newRecord[field.id] = document.getElementById(field.id).value;
+                    }
+                }
+
+                if (id) {
+                    await updateDoc(doc(db, currentCollection, id), newRecord);
+                } else {
+                    newRecord.createdAt = new Date().toISOString();
+                    await addDoc(collection(db, currentCollection), newRecord);
+                }
+                modalInstance.hide();
+            } catch (error) {
+                console.error(error);
+                alert("Error saving data! Check console.");
+            } finally {
+                btn.innerHTML = 'Save Record'; btn.disabled = false;
+            }
+        });
+
+        // 6. DELETE & EDIT HANDLERS
+        window.deleteRecord = async (id) => {
+            if (confirm("Permanently delete this record?")) await deleteDoc(doc(db, currentCollection, id));
+        };
+
+        window.editRecord = (id, encodedData) => {
+            const data = JSON.parse(decodeURIComponent(encodedData));
+            document.getElementById('recordId').value = id;
+            document.getElementById('modalTitle').innerText = 'Edit Record';
+            
+            schemas[currentCollection].fields.forEach(field => {
+                if (field.type === 'image') {
+                    let imgToLoad = data[field.id] || data['coverImageBase64'];
+                    document.getElementById(`${field.id}_file`).value = ""; 
+                    document.getElementById(`${field.id}_data`).value = imgToLoad || "";
+                    document.getElementById(`${field.id}_preview`).innerHTML = imgToLoad ? 
+                        `<img src="${imgToLoad}" class="img-thumbnail-custom mt-2">` : "No image uploaded yet.";
+                } else {
+                    if(document.getElementById(field.id)) {
+                        let val = data[field.id];
+                        // Handle booleans for select dropdowns
+                        if (typeof val === 'boolean') val = val.toString(); 
+                        document.getElementById(field.id).value = val !== undefined ? val : "";
+                    }
+                }
+            });
+            modalInstance.show();
+        };
+
+        document.getElementById('addNewBtn').addEventListener('click', () => {
+            document.getElementById('dynamicForm').reset();
+            document.getElementById('recordId').value = '';
+            document.getElementById('modalTitle').innerText = 'Add New Record';
+            
+            schemas[currentCollection].fields.forEach(field => {
+                if(field.type === 'image') {
+                    document.getElementById(`${field.id}_data`).value = "";
+                    document.getElementById(`${field.id}_preview`).innerHTML = "";
+                }
+            });
+        });
+
+        window.switchCollection('books'); 
+    </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+opencv-python
+pyaudio
+Pillow
+psutil
+pywebview
+numpy
+pyautogui
+google-genai

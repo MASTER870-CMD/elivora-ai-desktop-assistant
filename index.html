@@ -1,0 +1,2733 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELIVORA CLOUD | Dual-Pipeline Serverless Platform</title>
+    
+    <!-- Modern Typography & Frameworks -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ==========================================================================
+           ORIGINAL HIGH-CONTRAST WHITE & BLACK LIGHT THEME
+           STRICT: ZERO PURPLE, ZERO PINK, ZERO NEON ORANGE, ZERO PURPLE-SLATES.
+           ========================================================================== */
+        :root[data-theme="light"], :root {
+            --bg-main: #f8fafc; 
+            --bg-sidebar: #ffffff; 
+            --bg-card: #ffffff;
+            --text-main: #0f172a; 
+            --text-muted: #64748b; 
+            --border-color: #e2e8f0;
+            --primary: #0f172a; 
+            --primary-hover: #334155; 
+            --primary-light: #f1f5f9;
+            --accent-green: #10b981; 
+            --accent-green-light: #d1fae5;
+            --warning: #f59e0b; 
+            --warning-light: #fef3c7;
+            --danger: #ef4444; 
+            --danger-light: #fee2e2;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --modal-bg: rgba(255, 255, 255, 0.85);
+            --card-overlay: rgba(255, 255, 255, 0.95);
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
+            transition: background-color 0.3s ease; 
+            overflow-x: hidden; 
+            margin: 0;
+            padding: 0;
+        }
+
+        #app-container { min-height: 100vh; }
+        .sidebar { 
+            width: 260px; 
+            background: var(--bg-sidebar); 
+            border-right: 1px solid var(--border-color); 
+            height: 100vh; 
+            position: fixed; 
+            z-index: 1040; 
+            transition: transform 0.3s ease; 
+        }
+        .main-content { 
+            margin-left: 260px; 
+            padding: 2rem; 
+            padding-bottom: 140px !important; /* Ample bottom clearance so no elements go behind UI / taskbar */
+            min-height: 100vh; 
+            transition: margin-left 0.3s ease; 
+        }
+
+        .nav-link-custom { 
+            color: var(--text-muted); 
+            padding: 10px 16px; 
+            border-radius: 8px; 
+            margin-bottom: 4px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            text-decoration: none; 
+            font-weight: 500; 
+            transition: 0.2s; 
+            cursor: pointer; 
+        }
+        .nav-link-custom:hover, .nav-link-custom.active { 
+            background-color: var(--primary-light); 
+            color: var(--text-main); 
+            font-weight: 600; 
+        }
+
+        .saas-card { 
+            background: var(--bg-card); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            box-shadow: var(--shadow-sm); 
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
+            position: relative; 
+            z-index: 1; 
+            overflow: hidden; 
+            will-change: transform; 
+            transform: translateZ(0); 
+        }
+        .saas-card:hover, .saas-card:focus-within { 
+            box-shadow: var(--shadow-md); 
+            transform: translateY(-2px) translateZ(0); 
+            border-color: #cbd5e1; 
+            z-index: 10; 
+        }
+        
+        .repo-card-wrapper { transition: opacity 0.3s ease, transform 0.3s ease; transform-origin: top; }
+
+        .card-process-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--card-overlay); backdrop-filter: blur(8px);
+            z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .card-process-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .dropdown-menu { 
+            background-color: var(--bg-card); 
+            border: 1px solid var(--border-color); 
+            box-shadow: var(--shadow-lg); 
+            z-index: 1050; 
+            padding: 8px; 
+            border-radius: 12px; 
+        }
+        .dropdown-item { 
+            color: var(--text-main); 
+            border-radius: 6px; 
+            font-size: 0.9rem; 
+            font-weight: 500; 
+            padding: 8px 16px; 
+            transition: 0.2s; 
+            cursor: pointer; 
+        }
+        .dropdown-item:hover { 
+            background-color: var(--primary-light); 
+            color: var(--text-main); 
+        }
+
+        .preview-wrapper { 
+            width: 100%; height: 160px; border-radius: 8px; overflow: hidden; position: relative; 
+            margin-bottom: 1rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: opacity 0.2s ease;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+            background: #ffffff;
+        }
+        .preview-wrapper:hover { opacity: 0.9; }
+        .preview-iframe { 
+            width: 400%; height: 400%; transform: scale(0.25); transform-origin: top left; 
+            border: none; outline: none; position: absolute; top: 0; left: 0; 
+            background: #ffffff; pointer-events: none; 
+        }
+        .preview-shield { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 5; background: transparent; cursor: pointer; 
+        }
+
+        .status-badge { 
+            padding: 4px 10px; font-size: 0.75rem; font-weight: 600; 
+            border-radius: 50px; display: inline-flex; align-items: center; 
+            gap: 6px; letter-spacing: 0.5px; 
+        }
+        .status-badge.live { background: var(--accent-green-light); color: var(--accent-green); }
+        .status-badge.paused { background: var(--warning-light); color: var(--warning); }
+        .status-badge.failed { background: var(--danger-light); color: var(--danger); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .live .status-dot { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+        .paused .status-dot { background: var(--warning); }
+        .failed .status-dot { background: var(--danger); }
+
+        .form-control-custom { 
+            background: var(--bg-main); 
+            border: 1px solid var(--border-color); 
+            color: var(--text-main); 
+            border-radius: 8px; 
+            padding: 10px 16px; 
+            width: 100%; 
+            transition: 0.2s; 
+            font-size: 0.95rem;
+        }
+        .form-control-custom:focus { 
+            outline: none; 
+            border-color: var(--text-main); 
+            box-shadow: 0 0 0 3px var(--primary-light); 
+            background: #ffffff;
+        }
+        .form-control-custom::placeholder {
+            color: #94a3b8;
+        }
+
+        .btn-primary-custom { 
+            background: var(--primary); 
+            color: #ffffff; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            transition: all 0.2s ease; 
+            cursor: pointer;
+        }
+        .btn-primary-custom:hover { 
+            background: var(--primary-hover); 
+            color: #ffffff; 
+            transform: translateY(-1px); 
+        }
+        .btn-primary-custom:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .upload-zone { 
+            border: 2px dashed var(--border-color); 
+            border-radius: 12px; 
+            padding: 32px 24px; 
+            text-align: center; 
+            background: var(--bg-main); 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+        }
+        .upload-zone:hover, .upload-zone.dragover { 
+            border-color: var(--text-main); 
+            background: var(--primary-light); 
+        }
+
+        .view-section { display: none; animation: fadeIn 0.3s ease; padding-bottom: 40px; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .elivora-overlay { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background: var(--modal-bg); backdrop-filter: blur(5px); 
+            z-index: 2000; display: flex; align-items: center; justify-content: center; 
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease; 
+        }
+        .elivora-overlay.active { opacity: 1; pointer-events: auto; }
+        .elivora-modal { 
+            background: var(--bg-card); width: 100%; max-width: 520px; 
+            border-radius: 16px; border: 1px solid var(--border-color); 
+            box-shadow: var(--shadow-lg); transform: translateY(20px) scale(0.95); 
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); 
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .elivora-overlay.active .elivora-modal { transform: translateY(0) scale(1); }
+
+        @keyframes subtlePulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        .sync-indicator { 
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%; 
+            background: var(--accent-green); margin-left: 8px; animation: subtlePulse 2s infinite; 
+        }
+
+        /* Dual-Pipeline Segmented Toggle */
+        .pipeline-toggle-pill {
+            display: flex;
+            background: var(--primary-light);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 4px;
+            gap: 4px;
+        }
+        .pipeline-toggle-item {
+            flex: 1;
+            padding: 9px 16px;
+            border-radius: 7px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .pipeline-toggle-item:hover {
+            color: var(--text-main);
+        }
+        .pipeline-toggle-item.active {
+            background: var(--bg-card);
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .accordion-header-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .toast-container-custom {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 2500;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast-item {
+            background: var(--text-main);
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 12px 18px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: auto;
+            animation: slideInUp 0.25s ease;
+        }
+        .toast-item.error { background: var(--danger); }
+        .toast-item.success { background: #0f172a; border-left: 4px solid var(--accent-green); }
+        .toast-item.warning { background: #0f172a; border-left: 4px solid var(--warning); }
+        @keyframes slideInUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* Hovering Persistent Background Progress Widget */
+        #globalFloatingProgress {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 2200;
+            width: 380px;
+            max-width: calc(100vw - 48px);
+            animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @media (max-width: 991px) {
+            .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-md); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 1rem; padding-bottom: 140px !important; }
+            .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 1030; }
+            .sidebar-overlay.show { display: block; }
+            #globalFloatingProgress { width: calc(100vw - 32px); bottom: 16px; right: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toastContainer" class="toast-container-custom"></div>
+
+    <!-- Persistent Hovering Background Progress Widget -->
+    <div id="globalFloatingProgress" class="d-none">
+        <div class="saas-card p-3" style="box-shadow: var(--shadow-lg); border-left: 4px solid var(--primary); background: var(--bg-card);">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2 text-truncate pe-2">
+                    <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" id="floatSpinner" style="width: 14px; height: 14px; border-width: 2px;"></div>
+                    <span class="fw-bold text-main small text-truncate" id="floatProjectName">deployment</span>
+                    <span class="badge bg-light text-dark border flex-shrink-0" id="floatBadge" style="font-size: 0.65rem; border-color: var(--border-color) !important;">ELIVORA</span>
+                </div>
+                <span class="fw-bold text-primary small flex-shrink-0" id="floatPercent">0%</span>
+            </div>
+            <div class="progress mb-2" style="height: 6px; background: var(--border-color);">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="floatProgressBar" style="width: 0%; transition: 0.1s linear; background-color: var(--primary);"></div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
+                <span class="text-muted text-truncate me-2" id="floatStatusText">Initializing pipeline...</span>
+                <span class="fw-semibold text-main flex-shrink-0" id="floatTimeRemaining">Calculating...</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top" style="border-color: var(--border-color) !important; font-size: 0.72rem;">
+                <span class="text-muted"><i class="bi bi-clock-history me-1"></i>Running in background</span>
+                <button type="button" class="btn btn-sm btn-outline-dark py-0 px-2 fw-semibold" style="font-size: 0.72rem; border-radius: 4px;" onclick="switchView('deploy', document.querySelectorAll('.nav-link-custom')[2])">
+                    View in Deploy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="elivora-overlay" id="confirmDeleteOverlay">
+        <div class="elivora-modal p-4 p-md-5 text-center">
+            <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 60px; height: 60px; background: var(--danger-light); color: var(--danger);">
+                <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+            </div>
+            <h4 class="fw-bold text-main mb-2">Delete Repository?</h4>
+            <p class="text-muted small mb-4">Are you sure you want to permanently delete <b class="text-main" id="confirmDeleteName"></b> from your GitHub account? This action cannot be undone.</p>
+            <div class="d-flex gap-2 justify-content-center mt-4">
+                <button class="btn border form-control-custom w-auto bg-transparent text-main" onclick="closeModals()">Cancel</button>
+                <button class="btn btn-danger fw-bold px-4" onclick="executeConfirmedDelete()">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance / Pause Modal -->
+    <div class="elivora-overlay" id="pauseModalOverlay">
+        <div class="elivora-modal p-4 p-md-5">
+            <h4 class="fw-bold text-main mb-2"><i class="bi bi-pause-fill text-warning me-2"></i>Global Maintenance</h4>
+            <p class="text-muted small mb-4">Temporarily replace your live website with a maintenance page globally.</p>
+            <input type="hidden" id="pauseProjectId">
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="useCustomHtmlToggle" onchange="toggleCustomHtml()">
+                <label class="form-check-label small fw-bold text-main" for="useCustomHtmlToggle">Use Custom Maintenance HTML</label>
+            </div>
+            <div class="mb-4" id="standardPauseInput">
+                <label class="form-label small fw-bold text-main">PUBLIC MAINTENANCE REASON</label>
+                <input type="text" id="pauseReasonInput" class="form-control-custom" placeholder="e.g. Undergoing redesign, back soon!">
+            </div>
+            <div class="mb-4 d-none" id="customPauseInput">
+                <label class="form-label small fw-bold text-main">CUSTOM HTML CODE</label>
+                <textarea id="pauseCustomHtmlCode" class="form-control-custom font-monospace text-muted small" rows="5" placeholder="<html><body><h1>We are updating!</h1></body></html>"></textarea>
+            </div>
+            <div class="d-flex gap-2 justify-content-end mt-4">
+                <button class="btn border form-control-custom w-auto bg-transparent text-main" onclick="closeModals()">Cancel</button>
+                <button class="btn btn-warning text-dark fw-bold px-4 border-0" onclick="executeGlobalPause()">Apply Maintenance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="elivora-overlay" id="renameModalOverlay">
+        <div class="elivora-modal p-4 p-md-5">
+            <h4 class="fw-bold text-main mb-2"><i class="bi bi-input-cursor-text text-primary me-2"></i>Rename Website</h4>
+            <p class="text-muted small mb-4">This will change the repository name and your deployment URL.</p>
+            <input type="hidden" id="renameOldName">
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-main">NEW PROJECT ALIAS</label>
+                <div class="d-flex border rounded border-color overflow-hidden">
+                    <span class="px-3 py-2 bg-main text-muted border-end border-color">alias/</span>
+                    <input type="text" id="renameNewName" class="form-control border-0 shadow-none bg-card text-main" placeholder="new-name">
+                </div>
+            </div>
+            <div class="d-flex gap-2 justify-content-end mt-4">
+                <button class="btn border form-control-custom w-auto bg-transparent text-main" onclick="closeModals()">Cancel</button>
+                <button class="btn btn-primary-custom" onclick="executeRename()">Save Name</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paste .env Modal -->
+    <div class="elivora-overlay" id="pasteEnvOverlay">
+        <div class="elivora-modal p-4 p-md-5">
+            <h5 class="fw-bold text-main mb-1"><i class="bi bi-clipboard-data text-primary me-2"></i>Paste .env Content</h5>
+            <p class="text-muted small mb-3">Paste raw <code>KEY=VALUE</code> lines to automatically populate your environment variables.</p>
+            <textarea id="pasteEnvTextarea" class="form-control-custom font-monospace small mb-3" rows="8" placeholder="GEMINI_API_KEY=AIzaSy...&#10;AUTH_SECRET=super-secret-key&#10;NODE_ENV=production"></textarea>
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn border form-control-custom w-auto bg-transparent text-main" onclick="closeModals()">Cancel</button>
+                <button type="button" class="btn btn-primary-custom" onclick="applyPastedEnv()">Import Variables</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vercel Project Settings & Auto Re-Deploy Modal -->
+    <div class="elivora-overlay" id="vercelSettingsModalOverlay">
+        <div class="elivora-modal p-4 p-md-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-main mb-0"><i class="bi bi-sliders text-dark me-2"></i>Project Engine Settings</h5>
+                <button type="button" class="btn-close" onclick="closeModals()"></button>
+            </div>
+            <p class="text-muted small mb-4">Edit build settings and environment variables stored for this project, and trigger an auto re-deploy.</p>
+            <input type="hidden" id="modalVercelProjectId">
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-main">APPLICATION PRESET</label>
+                <select id="modalVercelPreset" class="form-control-custom" onchange="handleModalPresetChange(this.value)">
+                    <option value="Other">Other</option>
+                    <option value="React">React</option>
+                    <option value="Vite">Vite</option>
+                    <option value="Next.js">Next.js</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-main">ROOT DIRECTORY</label>
+                <input type="text" id="modalVercelRootDir" class="form-control-custom" value="./">
+            </div>
+
+            <div class="border rounded-3 p-3 mb-3 bg-white" style="border-color: var(--border-color) !important;">
+                <label class="form-label small fw-bold text-main text-uppercase mb-2">Build and Output Settings</label>
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">BUILD COMMAND</label>
+                    <input type="text" id="modalVercelBuildCmd" class="form-control-custom" placeholder="npm run build">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small text-muted mb-1">OUTPUT DIRECTORY</label>
+                    <input type="text" id="modalVercelOutputDir" class="form-control-custom" placeholder="dist (leave empty for Next.js)">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small text-muted mb-1">INSTALL COMMAND</label>
+                    <input type="text" id="modalVercelInstallCmd" class="form-control-custom" placeholder="npm install">
+                </div>
+            </div>
+
+            <!-- Modal Environment Variables -->
+            <div class="border rounded-3 p-3 mb-4 bg-white" style="border-color: var(--border-color) !important;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <div class="fw-bold text-main small text-uppercase">Environment Variables</div>
+                        <div class="text-muted small" style="font-size:0.75rem;">Stored locally for this project</div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="triggerModalEnvFileImport()" style="font-size:0.75rem; border-color: var(--border-color) !important;">
+                            <i class="bi bi-file-earmark-arrow-up"></i> .env
+                        </button>
+                        <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="addEnvVariableRow('', '', 'modalEnvRowsContainer')" style="font-size:0.75rem; border-color: var(--border-color) !important;">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </div>
+                <input type="file" id="modalEnvFileInput" accept=".env,.env.*,.txt" class="d-none" onchange="handleModalEnvFileSelect(event)">
+                <div id="modalEnvRowsContainer" class="d-flex flex-column gap-2 mt-2" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Rows populated dynamically -->
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <button type="button" class="btn border form-control-custom w-auto bg-transparent text-main" onclick="closeModals()">Cancel</button>
+                <button type="button" class="btn border form-control-custom w-auto bg-white text-main fw-semibold" onclick="saveVercelModalSettingsOnly()">Save Settings</button>
+                <button type="button" class="btn btn-primary-custom d-flex align-items-center gap-1" onclick="saveAndAutoRedeployFromModal()">
+                    <i class="bi bi-arrow-repeat"></i> Save & Auto Re-Deploy
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Shell -->
+    <div id="app-container">
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar d-flex flex-column p-3">
+            <div class="d-flex align-items-center justify-content-between mb-4 px-2 mt-2">
+                <h4 class="fw-bold mb-0 text-main d-flex align-items-center gap-2">
+                    <div class="bg-primary rounded text-white d-flex align-items-center justify-content-center" style="width:32px; height:32px;"><i class="bi bi-layers-fill fs-6"></i></div>
+                    ELIVORA CLOUD
+                </h4>
+                <button class="btn d-lg-none text-main border-0 p-1" onclick="toggleSidebar()"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="d-flex flex-column gap-1 flex-grow-1">
+                <span class="text-muted small fw-bold px-2 mt-2 mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">PLATFORM</span>
+                <a class="nav-link-custom" onclick="switchView('dashboard', this)"><i class="bi bi-grid"></i> Overview</a>
+                <a class="nav-link-custom active" onclick="switchView('analytics', this)"><i class="bi bi-bar-chart"></i> Analytics</a>
+                <a class="nav-link-custom" onclick="switchView('deploy', this)"><i class="bi bi-cloud-arrow-up"></i> Deployments</a>
+                <span class="text-muted small fw-bold px-2 mt-4 mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">CONFIGURATION</span>
+                <a class="nav-link-custom" onclick="switchView('settings', this)"><i class="bi bi-key"></i> API Config</a>
+                <span class="text-muted small fw-bold px-2 mt-4 mb-1" style="font-size: 0.7rem; letter-spacing: 0.5px;">SYSTEM</span>
+                <a href="/" class="nav-link-custom text-main"><i class="bi bi-arrow-left-circle"></i> Back to Hub</a>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="d-flex justify-content-between align-items-center mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="btn d-lg-none text-main border-0 p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-2"></i></button>
+                    <h3 class="fw-bold mb-0 text-main" id="pageTitle">Analytics Dashboard</h3>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-muted small fw-bold d-none d-md-flex align-items-center">LIVE SYNC <span class="sync-indicator"></span></span>
+                    <button class="btn border form-control-custom w-auto bg-card text-main d-none d-sm-flex align-items-center gap-2" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                    <a class="btn btn-primary-custom d-none d-sm-block" onclick="switchView('deploy', document.querySelectorAll('.nav-link-custom')[2])">+ New Project</a>
+                </div>
+            </header>
+
+            <!-- 1. OVERVIEW / DASHBOARD VIEW -->
+            <section id="dashboard" class="view-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold text-main m-0 d-none d-md-block">Active Deployments</h5>
+                    <div class="position-relative w-100" style="max-width: 320px;">
+                        <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+                        <input type="text" class="form-control-custom ps-5" id="searchInput" placeholder="Search deployments..." onkeyup="filterProjects()">
+                    </div>
+                </div>
+                <div class="row g-4" id="projectGrid"></div>
+            </section>
+
+            <!-- 2. ANALYTICS VIEW -->
+            <section id="analytics" class="view-section active">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="saas-card p-4">
+                            <p class="text-muted small fw-bold mb-1 text-uppercase">Total Deployments</p>
+                            <h2 class="fw-bold text-main m-0" id="statTotal">0</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="saas-card p-4">
+                            <p class="text-muted small fw-bold mb-1 text-uppercase">Activity (Last 7 Days)</p>
+                            <h2 class="fw-bold text-main m-0" id="statRecent">0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="saas-card p-4 p-md-5 mb-4">
+                    <h5 class="fw-bold text-main mb-1">Deployment Velocity</h5>
+                    <p class="text-muted small mb-4">Visual velocity tracking of created deployments across both pipelines.</p>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="analyticsChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. DEPLOYMENT VIEW (DUAL-PIPELINE) -->
+            <section id="deploy" class="view-section">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-lg-9 col-xl-7">
+                        <div class="saas-card p-4 p-md-5 mb-5">
+                            <h4 class="fw-bold text-main mb-1">Dual-Pipeline Deployment</h4>
+                            <p class="text-muted small mb-4">Select your architecture: Static (GitHub Pages) or Node.js Fullstack (Vercel).</p>
+
+                            <!-- Pipeline Toggle Switch -->
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-main text-uppercase mb-2">Select Pipeline</label>
+                                <div class="pipeline-toggle-pill">
+                                    <button type="button" id="btnModeStatic" class="pipeline-toggle-item active" onclick="switchDeployMode('static')">
+                                        <i class="bi bi-file-earmark-code me-1"></i> Static Engine
+                                    </button>
+                                    <button type="button" id="btnModeVercel" class="pipeline-toggle-item" onclick="switchDeployMode('vercel')">
+                                        <i class="bi bi-hdd-network me-1"></i> Node.js Fullstack
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- PIPELINE 1: STATIC GITHUB PAGES -->
+                            <div id="sectionStaticPipeline">
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">PROJECT ALIAS</label>
+                                    <div class="d-flex border rounded-3 overflow-hidden" style="border-color: var(--border-color) !important;">
+                                        <span class="px-3 py-2 bg-main text-muted border-end d-none d-sm-block small" style="border-color: var(--border-color) !important;">github.io/</span>
+                                        <input type="text" id="staticProjectName" class="form-control border-0 shadow-none text-main" placeholder="my-website" style="background: var(--bg-card); color: var(--text-main);">
+                                    </div>
+                                </div>
+
+                                <div class="upload-zone mb-3" id="staticDropZone" onclick="document.getElementById('staticFileInput').click()">
+                                    <i class="bi bi-folder-zip fs-1 text-main mb-2 d-block"></i>
+                                    <h5 class="fw-bold text-main mb-1">Drag & Drop .zip File</h5>
+                                    <p class="text-muted small mb-1">Processed instantly in your browser</p>
+                                    <p class="text-warning small fw-bold mb-0">Note: Main page must be named index.html</p>
+                                    <input type="file" id="staticFileInput" accept=".zip" class="d-none">
+                                </div>
+
+                                <div id="staticFileCard" class="d-none mb-3 p-3 rounded-3 border d-flex justify-content-between align-items-center" style="border-color: var(--border-color) !important; background: var(--bg-main);">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-file-earmark-zip text-main fs-4"></i>
+                                        <div>
+                                            <div class="fw-bold text-main small" id="staticFileNameDisplay">archive.zip</div>
+                                            <div class="text-muted small" id="staticFileSizeDisplay">0 KB</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm text-danger border-0 p-1" onclick="clearStaticFile()"><i class="bi bi-x-lg"></i></button>
+                                </div>
+
+                                <button type="button" id="staticDeployBtn" class="btn-primary-custom w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2" onclick="triggerStaticDeploy()">
+                                    <i class="bi bi-cloud-arrow-up-fill"></i> Deploy Static Project
+                                </button>
+
+                                <div id="staticProgressContainer" class="mt-4 p-3 border rounded-3 bg-main d-none" style="border-color: var(--border-color) !important;">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-bold text-main small" id="staticStatusText">Extracting files...</span>
+                                        <span class="fw-bold text-main small" id="staticProgressText">0%</span>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 6px; background: var(--border-color);">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="staticProgressBar" style="width: 0%; transition: 0.1s linear; background-color: var(--primary);"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small" style="font-size: 0.75rem;">
+                                        <span>Estimated remaining:</span>
+                                        <span class="fw-semibold text-main" id="staticTimeRemaining">Calculating...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PIPELINE 2: NODE.JS VERCEL (MIMICS VERCEL IMPORT DASHBOARD) -->
+                            <div id="sectionVercelPipeline" class="d-none">
+                                <!-- Project Name -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">PROJECT NAME</label>
+                                    <div class="d-flex border rounded-3 overflow-hidden" style="border-color: var(--border-color) !important;">
+                                        <input type="text" id="vercelProjectName" class="form-control border-0 shadow-none text-main" placeholder="my-app" style="background: var(--bg-card); color: var(--text-main);">
+                                        <span class="px-3 py-2 bg-main text-muted border-start d-none d-sm-block small" style="border-color: var(--border-color) !important;">.vercel.app</span>
+                                    </div>
+                                </div>
+
+                                <!-- Application Preset -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">APPLICATION PRESET</label>
+                                    <select id="vercelPreset" class="form-control-custom" onchange="handlePresetChange(this.value)">
+                                        <option value="Other" selected>Other (Node.js / Custom)</option>
+                                        <option value="React">React (Create React App)</option>
+                                        <option value="Vite">Vite (React/Vue/Vanilla)</option>
+                                        <option value="Next.js">Next.js</option>
+                                    </select>
+                                </div>
+
+                                <!-- Root Directory -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-main">ROOT DIRECTORY</label>
+                                    <input type="text" id="vercelRootDir" class="form-control-custom" value="./" placeholder="./">
+                                </div>
+
+                                <!-- Build and Output Settings Accordion -->
+                                <div class="border rounded-3 p-3 mb-3 bg-white" style="border-color: var(--border-color) !important;">
+                                    <button type="button" class="accordion-header-btn" onclick="toggleBuildSettings()">
+                                        <div>
+                                            <div class="fw-bold text-main small text-uppercase">Build and Output Settings</div>
+                                            <div class="text-muted small">Configure build command, output directory, and install command</div>
+                                        </div>
+                                        <i class="bi bi-chevron-down text-muted" id="buildChevronIcon" style="transition: transform 0.2s ease;"></i>
+                                    </button>
+                                    <div id="buildSettingsBody" class="d-none mt-3 pt-3 border-top" style="border-color: var(--border-color) !important;">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-main">BUILD COMMAND</label>
+                                            <input type="text" id="vercelBuildCommand" class="form-control-custom" placeholder="npm run build">
+                                            <div class="form-text text-muted small mt-1">Default: <code>npm run build</code></div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-bold text-main">OUTPUT DIRECTORY</label>
+                                            <input type="text" id="vercelOutputDir" class="form-control-custom" placeholder="dist (leave empty for Next.js)">
+                                            <div class="form-text text-muted small mt-1">Leave empty for Next.js automatic output. Use <code>dist</code> for Vite, <code>build</code> for React.</div>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small fw-bold text-main">INSTALL COMMAND</label>
+                                            <input type="text" id="vercelInstallCommand" class="form-control-custom" placeholder="npm install">
+                                            <div class="form-text text-muted small mt-1">Default: <code>npm install</code> (safer than <code>npm ci</code> for repos without strict lockfile).</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Environment Variables -->
+                                <div class="border rounded-3 p-3 mb-3 bg-white" style="border-color: var(--border-color) !important;">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                        <div>
+                                            <div class="fw-bold text-main small text-uppercase">Environment Variables</div>
+                                            <div class="text-muted small">Key-value parameters injected into build & runtime</div>
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <input type="file" id="envFileInput" accept=".env,.env.*,.txt" class="d-none" onchange="handleEnvFileSelect(event)">
+                                            <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="document.getElementById('envFileInput').click()" title="Upload a .env file">
+                                                <i class="bi bi-file-earmark-arrow-up me-1"></i> Import .env
+                                            </button>
+                                            <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="openPasteEnvModal()" title="Paste raw .env content">
+                                                <i class="bi bi-clipboard-plus me-1"></i> Paste .env
+                                            </button>
+                                            <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="addEnvVariableRow()">
+                                                <i class="bi bi-plus-lg me-1"></i> Add More
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="envRowsContainer" class="d-flex flex-column gap-2 mt-2">
+                                        <!-- Dynamic rows will be inserted here -->
+                                    </div>
+                                </div>
+
+                                <!-- Upload Zone -->
+                                <div class="upload-zone mb-3" id="vercelDropZone" onclick="document.getElementById('vercelFileInput').click()">
+                                    <i class="bi bi-cloud-arrow-up fs-1 text-main mb-2 d-block"></i>
+                                    <h5 class="fw-bold text-main mb-1">Drag & Drop .zip File</h5>
+                                    <p class="text-muted small mb-1">In-browser extraction & automated cloud deployment</p>
+                                    <p class="text-muted small mb-0">Supports Next.js, Vite, React, Express, or Node.js</p>
+                                    <input type="file" id="vercelFileInput" accept=".zip" class="d-none">
+                                </div>
+
+                                <div id="vercelFileCard" class="d-none mb-3 p-3 rounded-3 border d-flex justify-content-between align-items-center" style="border-color: var(--border-color) !important; background: var(--bg-main);">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-file-earmark-zip text-main fs-4"></i>
+                                        <div>
+                                            <div class="fw-bold text-main small" id="vercelFileNameDisplay">archive.zip</div>
+                                            <div class="text-muted small" id="vercelFileSizeDisplay">0 KB</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm text-danger border-0 p-1" onclick="clearVercelFile()"><i class="bi bi-x-lg"></i></button>
+                                </div>
+
+                                <!-- Deploy Button -->
+                                <button type="button" id="vercelDeployBtn" class="btn-primary-custom w-100 py-3 fw-bold d-flex align-items-center justify-content-center gap-2" onclick="triggerVercelDeploy()">
+                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Deploy to Elivora Cloud
+                                </button>
+
+                                <!-- Progress Container -->
+                                <div id="vercelProgressContainer" class="mt-4 p-3 border rounded-3 bg-main d-none" style="border-color: var(--border-color) !important;">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-bold text-main small text-truncate pe-2" id="vercelStatusText">Initializing pipeline...</span>
+                                        <span class="fw-bold text-main small flex-shrink-0" id="vercelProgressText">0%</span>
+                                    </div>
+                                    <div class="progress mb-2" style="height: 6px; background: var(--border-color);">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="vercelProgressBar" style="width: 0%; transition: 0.1s linear; background-color: var(--primary);"></div>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted small" style="font-size: 0.75rem;">
+                                        <span>Estimated remaining:</span>
+                                        <span class="fw-semibold text-main" id="vercelTimeRemaining">Calculating...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. SETTINGS VIEW -->
+            <section id="settings" class="view-section">
+                <div class="row justify-content-center">
+                    <div class="col-12 col-lg-8">
+                        <div class="saas-card p-4 p-md-5 mb-5">
+                            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h5 class="fw-bold text-main mb-1">API Credentials & Configuration</h5>
+                                    <p class="text-muted small mb-0">Authenticate your deployment pipelines for GitHub Pages and Vercel.</p>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <input type="file" id="apiConfigEnvFileInput" accept=".env,.env.*,.txt" style="display:none;" onchange="handleApiConfigEnvFileSelect(event)">
+                                    <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="syncTokensFromLocalEnv()" title="Auto-fill tokens from workspace .env">
+                                        <i class="bi bi-arrow-repeat me-1"></i> Sync from .env
+                                    </button>
+                                    <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="document.getElementById('apiConfigEnvFileInput').click()" title="Import tokens from a .env file">
+                                        <i class="bi bi-file-earmark-arrow-up me-1"></i> Import .env
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-main">GITHUB USERNAME</label>
+                                <input type="text" id="cfgUsername" class="form-control-custom" placeholder="e.g. your-github-handle">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-main">GITHUB PERSONAL ACCESS TOKEN (PAT)</label>
+                                <div class="input-group">
+                                    <input type="password" id="cfgToken" class="form-control-custom" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                    <button class="btn border bg-white text-muted" type="button" onclick="toggleSecretVisibility('cfgToken', this)" style="border-color: var(--border-color) !important; border-top-right-radius: 8px; border-bottom-right-radius: 8px;">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text text-muted small mt-1">Requires <code>repo</code> and <code>workflow</code> scopes.</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label small fw-bold text-main">VERCEL ACCESS TOKEN</label>
+                                <div class="input-group">
+                                    <input type="password" id="cfgVercelToken" class="form-control-custom" placeholder="vcp_xxxxxxxxxxxxxxxxxxxx" style="border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                                    <button class="btn border bg-white text-muted" type="button" onclick="toggleSecretVisibility('cfgVercelToken', this)" style="border-color: var(--border-color) !important; border-top-right-radius: 8px; border-bottom-right-radius: 8px;">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text text-muted small mt-1">Generated from your Vercel Account Settings &rarr; Tokens.</div>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <button class="btn-primary-custom px-4" onclick="saveConfig()">
+                                    <i class="bi bi-check-lg me-1"></i> Save Configuration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Application JavaScript Engine -->
+    <script>
+        const CONFIG = {
+            USERNAME: localStorage.getItem('elivora_gh_user') || '',
+            TOKEN: localStorage.getItem('elivora_gh_token') || '{{GITHUB_TOKEN_PLACEHOLDER}}',
+            VERCEL_TOKEN: localStorage.getItem('elivora_vercel_token') || '{{VERCEL_TOKEN_PLACEHOLDER}}'
+        };
+
+        let projects = [];
+        let activeDeployments = new Set();
+        let localStatuses = JSON.parse(localStorage.getItem('elivora_statuses') || '{}');
+        let staticSelectedFile = null;
+        let vercelSelectedFile = null;
+        let currentDeployMode = 'static';
+        let analyticsChartInstance = null;
+
+        // Background progress tracking
+        let isPipelineActive = false;
+        let uploadStartTime = 0;
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // --- View & Navigation Logic ---
+        function switchView(viewId, navEl) {
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+            const target = document.getElementById(viewId);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('.nav-link-custom').forEach(link => link.classList.remove('active'));
+            if (navEl) navEl.classList.add('active');
+
+            const titleMap = {
+                'dashboard': 'Deployments Overview',
+                'analytics': 'Analytics Dashboard',
+                'deploy': 'Dual-Pipeline Deployment',
+                'settings': 'API Credentials & Configuration'
+            };
+            document.getElementById('pageTitle').innerText = titleMap[viewId] || 'Dashboard';
+            if (window.innerWidth < 992) toggleSidebar(false);
+
+            if (viewId === 'analytics') {
+                setTimeout(renderAnalytics, 100);
+            }
+        }
+
+        function toggleSidebar(forceState) {
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            const shouldOpen = forceState !== undefined ? forceState : !sidebar.classList.contains('open');
+            if (shouldOpen) {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            }
+        }
+
+        function toggleSecretVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        // --- Pipeline Switch & Preset Management ---
+        function switchDeployMode(mode) {
+            currentDeployMode = mode;
+            const btnStatic = document.getElementById('btnModeStatic');
+            const btnVercel = document.getElementById('btnModeVercel');
+            const secStatic = document.getElementById('sectionStaticPipeline');
+            const secVercel = document.getElementById('sectionVercelPipeline');
+
+            if (mode === 'static') {
+                btnStatic.classList.add('active');
+                btnVercel.classList.remove('active');
+                secStatic.classList.remove('d-none');
+                secVercel.classList.add('d-none');
+            } else {
+                btnStatic.classList.remove('active');
+                btnVercel.classList.add('active');
+                secStatic.classList.add('d-none');
+                secVercel.classList.remove('d-none');
+            }
+        }
+
+        function handlePresetChange(preset) {
+            const buildInput = document.getElementById('vercelBuildCommand');
+            const outputInput = document.getElementById('vercelOutputDir');
+            const installInput = document.getElementById('vercelInstallCommand');
+            
+            if (preset === 'Next.js') {
+                buildInput.placeholder = 'next build';
+                buildInput.value = 'next build';
+                outputInput.placeholder = '(handled automatically by Next.js)';
+                outputInput.value = '';
+                installInput.placeholder = 'npm install';
+            } else if (preset === 'Vite') {
+                buildInput.placeholder = 'npm run build';
+                buildInput.value = 'npm run build';
+                outputInput.placeholder = 'dist';
+                outputInput.value = 'dist';
+                installInput.placeholder = 'npm install';
+            } else if (preset === 'React') {
+                buildInput.placeholder = 'npm run build';
+                buildInput.value = 'npm run build';
+                outputInput.placeholder = 'build';
+                outputInput.value = 'build';
+                installInput.placeholder = 'npm install';
+            } else {
+                buildInput.placeholder = 'npm run build';
+                buildInput.value = '';
+                outputInput.placeholder = 'dist';
+                outputInput.value = '';
+                installInput.placeholder = 'npm install';
+            }
+        }
+
+        function handleModalPresetChange(preset) {
+            const buildInput = document.getElementById('modalVercelBuildCmd');
+            const outputInput = document.getElementById('modalVercelOutputDir');
+            const installInput = document.getElementById('modalVercelInstallCmd');
+            if (preset === 'Next.js') {
+                buildInput.value = 'next build';
+                outputInput.value = '';
+                installInput.value = 'npm install';
+            } else if (preset === 'Vite') {
+                buildInput.value = 'npm run build';
+                outputInput.value = 'dist';
+                installInput.value = 'npm install';
+            } else if (preset === 'React') {
+                buildInput.value = 'npm run build';
+                outputInput.value = 'build';
+                installInput.value = 'npm install';
+            }
+        }
+
+        function toggleBuildSettings() {
+            const body = document.getElementById('buildSettingsBody');
+            const icon = document.getElementById('buildChevronIcon');
+            if (body.classList.contains('d-none')) {
+                body.classList.remove('d-none');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                body.classList.add('d-none');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // --- Dynamic Environment Variables & .env Importer ---
+        function addEnvVariableRow(key = '', val = '', containerId = 'envRowsContainer') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const row = document.createElement('div');
+            row.className = 'd-flex gap-2 align-items-center env-row';
+            row.innerHTML = `
+                <input type="text" class="form-control-custom env-key" placeholder="VARIABLE_KEY" value="${escapeHtml(key)}" style="flex: 1; font-family: monospace;">
+                <input type="text" class="form-control-custom env-value" placeholder="value" value="${escapeHtml(val)}" style="flex: 1; font-family: monospace;">
+                <button type="button" class="btn btn-sm border bg-transparent text-danger px-3 py-2" style="border-color: var(--border-color) !important;" onclick="this.closest('.env-row').remove()" title="Remove variable">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        function getEnvVariablesFromContainer(containerId = 'envRowsContainer') {
+            const rows = document.querySelectorAll(`#${containerId} .env-row`);
+            const list = [];
+            rows.forEach(r => {
+                const k = r.querySelector('.env-key')?.value.trim();
+                const v = r.querySelector('.env-value')?.value.trim();
+                if (k) {
+                    list.push({
+                        key: k,
+                        value: v || '',
+                        type: 'plain',
+                        target: ['production', 'preview', 'development']
+                    });
+                }
+            });
+            return list;
+        }
+
+        function parseAndPopulateEnvLines(rawText, containerId = 'envRowsContainer') {
+            const lines = rawText.split(/\r?\n/);
+            let importedCount = 0;
+            lines.forEach(line => {
+                let trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) return;
+                if (trimmed.startsWith('export ')) trimmed = trimmed.substring(7).trim();
+                const eqIdx = trimmed.indexOf('=');
+                if (eqIdx === -1) return;
+
+                const key = trimmed.substring(0, eqIdx).trim();
+                let val = trimmed.substring(eqIdx + 1).trim();
+
+                // Strip surrounding quotes
+                if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+                    val = val.substring(1, val.length - 1);
+                }
+
+                if (key) {
+                    addEnvVariableRow(key, val, containerId);
+                    importedCount++;
+                }
+            });
+
+            if (importedCount > 0) {
+                showToast(`Successfully imported ${importedCount} keys from .env!`, 'success');
+            } else {
+                showToast('No valid KEY=VALUE pairs found in .env text', 'warning');
+            }
+        }
+
+        function handleEnvFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                parseAndPopulateEnvLines(e.target.result, 'envRowsContainer');
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function triggerModalEnvFileImport() {
+            document.getElementById('modalEnvFileInput').click();
+        }
+
+        function handleModalEnvFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                parseAndPopulateEnvLines(e.target.result, 'modalEnvRowsContainer');
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function openPasteEnvModal() {
+            document.getElementById('pasteEnvTextarea').value = '';
+            document.getElementById('pasteEnvOverlay').classList.add('active');
+        }
+
+        function applyPastedEnv() {
+            const raw = document.getElementById('pasteEnvTextarea').value;
+            closeModals();
+            if (raw.trim()) {
+                parseAndPopulateEnvLines(raw, 'envRowsContainer');
+            }
+        }
+
+        // --- Real Time Remaining Calculation Helpers ---
+        function calculateRealUploadTimeRemaining(doneIndex, totalCount) {
+            if (doneIndex <= 1) return "Estimating...";
+            const elapsed = (performance.now() - uploadStartTime) / 1000;
+            const rate = doneIndex / Math.max(elapsed, 0.05); // files per second
+            const remainingCount = totalCount - doneIndex;
+            const secondsLeft = Math.max(1, Math.round(remainingCount / rate));
+
+            if (secondsLeft >= 60) {
+                const mins = Math.floor(secondsLeft / 60);
+                const secs = secondsLeft % 60;
+                return `~${mins}m ${secs}s left (${rate.toFixed(1)} files/s)`;
+            }
+            return `~${secondsLeft}s left (${rate.toFixed(1)} files/s)`;
+        }
+
+        // --- Global Floating Progress Management ---
+        
+        function handleApiConfigEnvFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                populateApiConfigFromEnvText(e.target.result);
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function syncTokensFromLocalEnv() {
+            fetch('/api/load_env')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        let updated = 0;
+                        if (data.GITHUB_DEFAULT_TOKEN || data.GITHUB_TOKEN || data.GH_TOKEN) {
+                            const t = data.GITHUB_DEFAULT_TOKEN || data.GITHUB_TOKEN || data.GH_TOKEN;
+                            document.getElementById('cfgToken').value = t;
+                            CONFIG.TOKEN = t;
+                            localStorage.setItem('elivora_gh_token', t);
+                            updated++;
+                        }
+                        if (data.VERCEL_DEFAULT_TOKEN || data.VERCEL_TOKEN) {
+                            const vt = data.VERCEL_DEFAULT_TOKEN || data.VERCEL_TOKEN;
+                            document.getElementById('cfgVercelToken').value = vt;
+                            CONFIG.VERCEL_TOKEN = vt;
+                            localStorage.setItem('elivora_vercel_token', vt);
+                            updated++;
+                        }
+                        if (data.GITHUB_USERNAME || data.GH_USER) {
+                            const u = data.GITHUB_USERNAME || data.GH_USER;
+                            document.getElementById('cfgUsername').value = u;
+                            CONFIG.USERNAME = u;
+                            localStorage.setItem('elivora_gh_user', u);
+                            updated++;
+                        }
+                        if (updated > 0) {
+                            showToast(`Successfully synced ${updated} credentials from .env!`, 'success');
+                        } else {
+                            showToast('No GitHub or Vercel tokens found in workspace .env', 'warning');
+                        }
+                    } else {
+                        showToast('Unable to read workspace .env. Use "Import .env" button.', 'warning');
+                    }
+                })
+                .catch(() => {
+                    showToast('Unable to reach /api/load_env. Use "Import .env" button to select your file.', 'warning');
+                });
+        }
+
+        function populateApiConfigFromEnvText(raw) {
+            const lines = raw.split(/\r?\n/);
+            let updated = 0;
+            lines.forEach(l => {
+                let trimmed = l.trim();
+                if (!trimmed || trimmed.startsWith('#')) return;
+                if (trimmed.startsWith('export ')) trimmed = trimmed.substring(7).trim();
+                const eqIdx = trimmed.indexOf('=');
+                if (eqIdx === -1) return;
+                const k = trimmed.substring(0, eqIdx).trim();
+                let v = trimmed.substring(eqIdx + 1).trim();
+                if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+                    v = v.substring(1, v.length - 1);
+                }
+                if (['GITHUB_DEFAULT_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'PAT'].includes(k)) {
+                    document.getElementById('cfgToken').value = v;
+                    CONFIG.TOKEN = v;
+                    localStorage.setItem('elivora_gh_token', v);
+                    updated++;
+                }
+                if (['VERCEL_DEFAULT_TOKEN', 'VERCEL_TOKEN'].includes(k)) {
+                    document.getElementById('cfgVercelToken').value = v;
+                    CONFIG.VERCEL_TOKEN = v;
+                    localStorage.setItem('elivora_vercel_token', v);
+                    updated++;
+                }
+                if (['GITHUB_USERNAME', 'GH_USER', 'USERNAME'].includes(k) && !k.startsWith('VERCEL')) {
+                    document.getElementById('cfgUsername').value = v;
+                    CONFIG.USERNAME = v;
+                    localStorage.setItem('elivora_gh_user', v);
+                    updated++;
+                }
+            });
+            if (updated > 0) {
+                showToast(`Imported ${updated} credentials from .env!`, 'success');
+            } else {
+                showToast('No GITHUB_DEFAULT_TOKEN or VERCEL_DEFAULT_TOKEN found in file.', 'warning');
+            }
+        }
+
+        function syncEnvFromLocalEnv(containerId = 'envRowsContainer') {
+            fetch('/api/load_env')
+                .then(r => r.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        let count = 0;
+                        for (const [k, v] of Object.entries(data)) {
+                            if (k && v !== undefined && !['GITHUB_DEFAULT_TOKEN', 'VERCEL_DEFAULT_TOKEN'].includes(k)) {
+                                addEnvVariableRow(k, v, containerId);
+                                count++;
+                            }
+                        }
+                        if (count > 0) {
+                            showToast(`Imported ${count} keys from workspace .env!`, 'success');
+                        } else {
+                            showToast('Workspace .env has no additional variables.', 'warning');
+                        }
+                    } else {
+                        showToast('Unable to auto-read workspace .env. Use "Import .env" file button.', 'warning');
+                    }
+                })
+                .catch(() => {
+                    showToast('Unable to fetch workspace .env. Use "Import .env" file button.', 'warning');
+                });
+        }
+
+        function checkActiveFloatingProgress() {
+            try {
+                const raw = localStorage.getItem('elivora_active_pipeline');
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                if (data && data.active) {
+                    setGlobalFloatingProgress({
+                        visible: true,
+                        name: data.name,
+                        badge: data.badge,
+                        pct: data.pct,
+                        status: data.status,
+                        time: data.time,
+                        deploymentId: data.deploymentId
+                    });
+                    if (data.deploymentId && !window.isPollingVercel) {
+                        window.isPollingVercel = true;
+                        pollVercelBuildStatus(data.deploymentId, data.name);
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function setGlobalFloatingProgress(opts) {
+            const floatWidget = document.getElementById('globalFloatingProgress');
+            if (!opts.visible) {
+                if (floatWidget) floatWidget.classList.add('d-none');
+                if (!opts.done && !opts.failed) {
+                    localStorage.removeItem('elivora_active_pipeline');
+                }
+                return;
+            }
+            if (floatWidget) floatWidget.classList.remove('d-none');
+
+            if (opts.name) document.getElementById('floatProjectName').innerText = opts.name;
+            if (opts.badge) document.getElementById('floatBadge').innerText = opts.badge;
+            if (opts.pct !== undefined) {
+                document.getElementById('floatPercent').innerText = `${opts.pct}%`;
+                document.getElementById('floatProgressBar').style.width = `${opts.pct}%`;
+            }
+            if (opts.status) document.getElementById('floatStatusText').innerText = opts.status;
+            if (opts.time) document.getElementById('floatTimeRemaining').innerText = opts.time;
+
+            // Persist active state in localStorage so Hub and AI System can hover-track progress
+            try {
+                const pipelineData = {
+                    active: !opts.done && !opts.failed,
+                    done: !!opts.done,
+                    failed: !!opts.failed,
+                    name: opts.name || document.getElementById('floatProjectName').innerText,
+                    badge: opts.badge || document.getElementById('floatBadge').innerText,
+                    pct: opts.pct !== undefined ? opts.pct : 0,
+                    status: opts.status || '',
+                    time: opts.time || '',
+                    deploymentId: opts.deploymentId || (window.currentVercelDeploymentId || null),
+                    token: CONFIG.VERCEL_TOKEN || ''
+                };
+                localStorage.setItem('elivora_active_pipeline', JSON.stringify(pipelineData));
+            } catch(e) {}
+            
+            const spinner = document.getElementById('floatSpinner');
+            if (spinner) {
+                if (opts.done) {
+                    spinner.className = 'bi bi-check-circle-fill text-success flex-shrink-0';
+                    spinner.style.display = 'inline-block';
+                } else if (opts.failed) {
+                    spinner.className = 'bi bi-exclamation-triangle-fill text-danger flex-shrink-0';
+                    spinner.style.display = 'inline-block';
+                } else {
+                    spinner.className = 'spinner-border spinner-border-sm text-primary flex-shrink-0';
+                    spinner.style.display = 'inline-block';
+                }
+            }
+        }
+
+        // --- File Upload Helpers ---
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function setupDragDropZone(zoneId, inputId, onFileSelected) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+
+            ['dragenter', 'dragover'].forEach(name => {
+                zone.addEventListener(name, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    zone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(name => {
+                zone.addEventListener(name, (e) => {
+                    e.preventDefault(); e.stopPropagation();
+                    zone.classList.remove('dragover');
+                }, false);
+            });
+
+            zone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) onFileSelected(files[0]);
+            });
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) onFileSelected(e.target.files[0]);
+            });
+        }
+
+        function onStaticFileChosen(file) {
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                return showToast('Please upload a valid .zip codebase file', 'error');
+            }
+            staticSelectedFile = file;
+            document.getElementById('staticFileNameDisplay').innerText = file.name;
+            document.getElementById('staticFileSizeDisplay').innerText = formatBytes(file.size);
+            document.getElementById('staticDropZone').classList.add('d-none');
+            document.getElementById('staticFileCard').classList.remove('d-none');
+            
+            const nameInput = document.getElementById('staticProjectName');
+            if (!nameInput.value.trim()) {
+                const baseName = file.name.replace(/\.zip$/i, '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                nameInput.value = baseName;
+            }
+        }
+
+        function clearStaticFile() {
+            staticSelectedFile = null;
+            document.getElementById('staticFileInput').value = '';
+            document.getElementById('staticFileCard').classList.add('d-none');
+            document.getElementById('staticDropZone').classList.remove('d-none');
+        }
+
+        function onVercelFileChosen(file) {
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                return showToast('Please upload a valid .zip codebase file', 'error');
+            }
+            vercelSelectedFile = file;
+            document.getElementById('vercelFileNameDisplay').innerText = file.name;
+            document.getElementById('vercelFileSizeDisplay').innerText = formatBytes(file.size);
+            document.getElementById('vercelDropZone').classList.add('d-none');
+            document.getElementById('vercelFileCard').classList.remove('d-none');
+
+            const nameInput = document.getElementById('vercelProjectName');
+            if (!nameInput.value.trim()) {
+                const baseName = file.name.replace(/\.zip$/i, '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                nameInput.value = baseName;
+            }
+        }
+
+        function clearVercelFile() {
+            vercelSelectedFile = null;
+            document.getElementById('vercelFileInput').value = '';
+            document.getElementById('vercelFileCard').classList.add('d-none');
+            document.getElementById('vercelDropZone').classList.remove('d-none');
+        }
+
+        // --- Persistent Vercel Projects Helper ---
+        function getSavedVercelDeployments() {
+            try {
+                return JSON.parse(localStorage.getItem('elivora_vercel_projects') || '[]');
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function saveVercelDeploymentRecord(rec) {
+            const list = getSavedVercelDeployments();
+            const idx = list.findIndex(x => x.id === rec.id);
+            if (idx >= 0) list[idx] = { ...list[idx], ...rec };
+            else list.unshift(rec);
+            localStorage.setItem('elivora_vercel_projects', JSON.stringify(list));
+        }
+
+        // --- GitHub API Helper ---
+        async function ghFetch(endpoint, options = {}) {
+            const url = endpoint.startsWith('http') ? endpoint : `https://api.github.com${endpoint}`;
+            const headers = { 
+                'Authorization': `token ${CONFIG.TOKEN}`, 
+                'Accept': 'application/vnd.github.v3+json', 
+                'Content-Type': 'application/json', 
+                ...options.headers 
+            };
+            const response = await fetch(url, { ...options, headers });
+            if (!response.ok) { 
+                const err = await response.json().catch(() => ({})); 
+                throw new Error(err.message || `GitHub API Error: ${response.status}`); 
+            }
+            return response.status !== 204 ? await response.json().catch(() => ({})) : null;
+        }
+
+        // --- Settings Storage ---
+        function saveConfig() {
+            CONFIG.USERNAME = document.getElementById('cfgUsername').value.trim(); 
+            CONFIG.TOKEN = document.getElementById('cfgToken').value.trim();
+            CONFIG.VERCEL_TOKEN = document.getElementById('cfgVercelToken').value.trim();
+
+            localStorage.setItem('elivora_gh_user', CONFIG.USERNAME); 
+            localStorage.setItem('elivora_gh_token', CONFIG.TOKEN);
+            localStorage.setItem('elivora_vercel_token', CONFIG.VERCEL_TOKEN);
+
+            showToast("Configuration saved successfully.", "success"); 
+            setTimeout(() => location.reload(), 600);
+        }
+
+        // --- Deploy Pipeline 1: Static (GitHub Pages) ---
+        async function triggerStaticDeploy() {
+            if (!CONFIG.TOKEN) {
+                showToast("Please configure your GitHub Personal Access Token in Settings first.", "error");
+                return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
+            }
+
+            const file = staticSelectedFile;
+            if (!file) return showToast("Please select or drop a .zip file", "warning");
+
+            let repoName = document.getElementById('staticProjectName').value.trim() || `project-${Date.now()}`;
+            repoName = repoName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+
+            const progCont = document.getElementById('staticProgressContainer');
+            const progBar = document.getElementById('staticProgressBar');
+            const pText = document.getElementById('staticProgressText');
+            const sText = document.getElementById('staticStatusText');
+            const tText = document.getElementById('staticTimeRemaining');
+            const deployBtn = document.getElementById('staticDeployBtn');
+
+            progCont.classList.remove('d-none');
+            progCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            deployBtn.disabled = true;
+
+            uploadStartTime = performance.now();
+            isPipelineActive = true;
+
+            const updateStaticProgress = (pct, status, timeStr) => {
+                progBar.style.width = `${pct}%`;
+                pText.innerText = `${pct}%`;
+                sText.innerText = status;
+                tText.innerText = timeStr || "Calculating...";
+
+                // Sync with persistent floating widget
+                setGlobalFloatingProgress({
+                    visible: true,
+                    name: repoName,
+                    badge: 'ELIVORA',
+                    pct: pct,
+                    status: status,
+                    time: timeStr || "Calculating..."
+                });
+            };
+
+            try {
+                if (!CONFIG.USERNAME) {
+                    updateStaticProgress(5, "Resolving GitHub account...", "Starting...");
+                    const uData = await ghFetch('/user');
+                    CONFIG.USERNAME = uData.login;
+                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
+                }
+
+                updateStaticProgress(12, `Creating GitHub repository '${repoName}'...`, "Connecting...");
+                await ghFetch('/user/repos', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ name: repoName, auto_init: true, private: false, description: "Deployed via Elivora Cloud (Static)" }) 
+                }).catch(async () => {
+                    await ghFetch(`/repos/${CONFIG.USERNAME}/${repoName}`);
+                });
+
+                updateStaticProgress(25, "Extracting files from archive...", "Decompressing...");
+                const zip = new JSZip(); 
+                const loadedZip = await zip.loadAsync(file);
+                const filesToUpload = Object.keys(loadedZip.files).filter(k => !loadedZip.files[k].dir && !k.startsWith('__MACOSX') && !k.includes('.DS_Store'));
+                
+                if (filesToUpload.length === 0) throw new Error("Zip archive contains no valid files.");
+
+                let commonPrefix = "";
+                const firstParts = filesToUpload[0].split('/');
+                if (firstParts.length > 1) {
+                    const candidatePrefix = firstParts[0] + '/';
+                    if (filesToUpload.every(f => f.startsWith(candidatePrefix))) {
+                        commonPrefix = candidatePrefix;
+                    }
+                }
+                
+                uploadStartTime = performance.now();
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const rawPath = filesToUpload[i];
+                    let uploadPath = commonPrefix && rawPath.startsWith(commonPrefix) ? rawPath.substring(commonPrefix.length) : rawPath;
+                    if (!uploadPath) continue;
+
+                    const base64Data = await loadedZip.files[rawPath].async("base64");
+                    
+                    let sha = null;
+                    try {
+                        const fileInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${repoName}/contents/${uploadPath}`);
+                        if (fileInfo && fileInfo.sha) sha = fileInfo.sha;
+                    } catch(e) {}
+
+                    const putPayload = { message: `Deploy ${uploadPath} via Elivora Cloud`, content: base64Data };
+                    if (sha) putPayload.sha = sha;
+
+                    try { 
+                        await ghFetch(`/repos/${CONFIG.USERNAME}/${repoName}/contents/${uploadPath}`, { 
+                            method: 'PUT', 
+                            body: JSON.stringify(putPayload) 
+                        }); 
+                    } catch(e) {}
+                    
+                    const progress = 25 + Math.floor((i / filesToUpload.length) * 65);
+                    const realTime = calculateRealUploadTimeRemaining(i + 1, filesToUpload.length);
+                    updateStaticProgress(progress, `Pushing (${i+1}/${filesToUpload.length}): ${uploadPath}`, realTime);
+                }
+
+                updateStaticProgress(92, "Configuring GitHub Pages...", "Activating Pages...");
+                try { 
+                    await ghFetch(`/repos/${CONFIG.USERNAME}/${repoName}/pages`, { 
+                        method: 'POST', 
+                        body: JSON.stringify({ source: { branch: "main", path: "/" } }), 
+                        headers: { 'Accept': 'application/vnd.github.switcheroo-preview+json' } 
+                    }); 
+                } catch(e) {}
+
+                updateStaticProgress(100, "Deployment Complete!", "Live Ready"); 
+                showToast("Static site successfully deployed to GitHub Pages!", "success");
+
+                setGlobalFloatingProgress({
+                    visible: true,
+                    name: repoName,
+                    badge: 'ELIVORA',
+                    pct: 100,
+                    status: "Live & Ready!",
+                    time: "Completed",
+                    done: true
+                });
+                setTimeout(() => setGlobalFloatingProgress({ visible: false }), 4000);
+
+                clearStaticFile();
+                document.getElementById('staticProjectName').value = '';
+                
+                activeDeployments.add(repoName);
+                const newP = { 
+                    id: repoName, 
+                    url: `https://${CONFIG.USERNAME}.github.io/${repoName}/`, 
+                    github: `https://github.com/${CONFIG.USERNAME}/${repoName}`, 
+                    date: new Date().toISOString(), 
+                    status: 'live',
+                    platform: 'github'
+                };
+                projects.unshift(newP);
+                renderProjects();
+                renderAnalytics();
+
+                switchView('dashboard', document.querySelectorAll('.nav-link-custom')[0]); 
+
+            } catch (err) { 
+                console.error(err);
+                showToast(err.message || "Failed to deploy static project", 'error'); 
+                setGlobalFloatingProgress({ visible: false });
+            } finally {
+                deployBtn.disabled = false;
+                isPipelineActive = false;
+                setTimeout(() => {
+                    progCont.classList.add('d-none');
+                    progBar.style.width = '0%';
+                }, 3000);
+            }
+        }
+
+        // --- Deploy Pipeline 2: Node.js (Vercel) ---
+        async function triggerVercelDeploy() {
+            const ghToken = (CONFIG.TOKEN || "").trim();
+            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
+
+            if (!ghToken) {
+                showToast("GitHub Personal Access Token is required. Please configure in Settings.", "error");
+                return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
+            }
+            if (!vercelToken) {
+                showToast("Vercel Access Token is required. Please configure in Settings.", "error");
+                return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
+            }
+
+            const rawName = document.getElementById('vercelProjectName').value.trim();
+            if (!rawName) return showToast("Please enter a Project Name", "warning");
+            
+            const cleanProjectName = rawName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+            if (!cleanProjectName) return showToast("Invalid Project Name. Use alphanumeric characters.", "warning");
+
+            const zipFile = vercelSelectedFile;
+            if (!zipFile) return showToast("Please drag & drop or select a .zip codebase file", "warning");
+
+            const progCont = document.getElementById('vercelProgressContainer');
+            const progBar = document.getElementById('vercelProgressBar');
+            const pText = document.getElementById('vercelProgressText');
+            const sText = document.getElementById('vercelStatusText');
+            const tText = document.getElementById('vercelTimeRemaining');
+            const deployBtn = document.getElementById('vercelDeployBtn');
+
+            progCont.classList.remove('d-none');
+            progCont.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            deployBtn.disabled = true;
+
+            uploadStartTime = performance.now();
+            isPipelineActive = true;
+
+            const updateVercelProgress = (pct, status, timeStr) => {
+                progBar.style.width = `${pct}%`;
+                pText.innerText = `${pct}%`;
+                sText.innerText = status;
+                tText.innerText = timeStr || "Calculating...";
+
+                // Sync with persistent floating widget
+                setGlobalFloatingProgress({
+                    visible: true,
+                    name: cleanProjectName,
+                    badge: 'ELIVORA',
+                    pct: pct,
+                    status: status,
+                    time: timeStr || "Calculating..."
+                });
+            };
+
+            try {
+                // 1. Verify credentials & obtain GitHub Username
+                updateVercelProgress(5, "Verifying GitHub & Vercel credentials...", "Starting...");
+                let ghUserData;
+                try {
+                    ghUserData = await ghFetch('/user');
+                    CONFIG.USERNAME = ghUserData.login;
+                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
+                } catch (e) {
+                    throw new Error("Invalid GitHub Personal Access Token.");
+                }
+
+                // 2. Call POST https://api.github.com/user/repos to create the repo and capture the repoId
+                updateVercelProgress(12, `Creating GitHub repository '${cleanProjectName}'...`, "Connecting...");
+                let repoData;
+                try {
+                    repoData = await ghFetch('/user/repos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: cleanProjectName,
+                            auto_init: true,
+                            private: false,
+                            description: "Deployed via Elivora Cloud (Node.js Vercel Pipeline)"
+                        })
+                    });
+                } catch(e) {
+                    updateVercelProgress(15, `Fetching existing repository '${cleanProjectName}'...`, "Connecting...");
+                    repoData = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}`);
+                }
+
+                const repoId = repoData.id;
+                const repoFullName = repoData.full_name || `${CONFIG.USERNAME}/${cleanProjectName}`;
+                const defaultBranch = repoData.default_branch || 'main';
+
+                // 3. Extract .zip via JSZip and push all files to the new GitHub repo using PUT
+                updateVercelProgress(20, "Extracting codebase archive in browser...", "Decompressing...");
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(zipFile);
+                const filesToUpload = Object.keys(loadedZip.files).filter(k => {
+                    return !loadedZip.files[k].dir && !k.startsWith('__MACOSX') && !k.includes('.DS_Store');
+                });
+
+                if (filesToUpload.length === 0) throw new Error("Zip archive is empty.");
+
+                let commonPrefix = "";
+                const firstParts = filesToUpload[0].split('/');
+                if (firstParts.length > 1) {
+                    const candidatePrefix = firstParts[0] + '/';
+                    if (filesToUpload.every(f => f.startsWith(candidatePrefix))) {
+                        commonPrefix = candidatePrefix;
+                    }
+                }
+
+                uploadStartTime = performance.now();
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const rawPath = filesToUpload[i];
+                    const cleanPath = commonPrefix && rawPath.startsWith(commonPrefix) ? rawPath.substring(commonPrefix.length) : rawPath;
+                    if (!cleanPath) continue;
+
+                    const base64Data = await loadedZip.files[rawPath].async("base64");
+                    
+                    let sha = null;
+                    try {
+                        const existingFile = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}?ref=${defaultBranch}`);
+                        if (existingFile && existingFile.sha) sha = existingFile.sha;
+                    } catch (e) {}
+
+                    const putPayload = {
+                        message: `Deploy ${cleanPath} via Elivora Cloud`,
+                        content: base64Data,
+                        branch: defaultBranch
+                    };
+                    if (sha) putPayload.sha = sha;
+
+                    try {
+                        await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(putPayload)
+                        });
+                    } catch(e) {}
+
+                    const stepPct = 20 + Math.floor((i / filesToUpload.length) * 55);
+                    const realTime = calculateRealUploadTimeRemaining(i + 1, filesToUpload.length);
+                    updateVercelProgress(stepPct, `Pushing (${i + 1}/${filesToUpload.length}): ${cleanPath}`, realTime);
+                }
+
+                // 4. Call POST https://api.vercel.com/v11/projects using Vercel Token
+                updateVercelProgress(78, "Configuring Vercel v11 Project & Git link...", "Configuring cloud...");
+                const preset = document.getElementById('vercelPreset').value;
+                const frameworkMap = {
+                    "Next.js": "nextjs",
+                    "Vite": "vite",
+                    "React": "create-react-app",
+                    "Other": null
+                };
+                const frameworkValue = frameworkMap[preset] || null;
+                const rootDir = document.getElementById('vercelRootDir').value.trim();
+                const buildCmd = document.getElementById('vercelBuildCommand').value.trim();
+                const outputDir = document.getElementById('vercelOutputDir').value.trim();
+                const installCmd = document.getElementById('vercelInstallCommand').value.trim();
+                const envVars = getEnvVariablesFromContainer('envRowsContainer');
+
+                const vercelProjectPayload = {
+                    name: cleanProjectName,
+                    gitRepository: {
+                        type: "github",
+                        repo: repoFullName
+                    }
+                };
+                if (frameworkValue) vercelProjectPayload.framework = frameworkValue;
+                if (rootDir && rootDir !== './' && rootDir !== '.') vercelProjectPayload.rootDirectory = rootDir;
+                if (buildCmd) vercelProjectPayload.buildCommand = buildCmd;
+                if (outputDir) vercelProjectPayload.outputDirectory = outputDir;
+                if (installCmd) vercelProjectPayload.installCommand = installCmd;
+                if (envVars.length > 0) vercelProjectPayload.environmentVariables = envVars;
+
+                let vercelProjRes = await fetch('https://api.vercel.com/v11/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${vercelToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vercelProjectPayload)
+                });
+
+                if (vercelProjRes.status === 409) {
+                    updateVercelProgress(82, "Project exists on Vercel. Updating settings...", "Configuring...");
+                    await fetch(`https://api.vercel.com/v9/projects/${cleanProjectName}`, {
+                        headers: { 'Authorization': `Bearer ${vercelToken}` }
+                    }).catch(() => {});
+                }
+
+                // 5. Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1 to trigger the build
+                updateVercelProgress(86, "Triggering Elivora Cloud Production Deployment...", "Triggering build...");
+                const vercelDeployPayload = {
+                    name: cleanProjectName,
+                    target: "production",
+                    gitSource: {
+                        type: "github",
+                        repoId: String(repoId),
+                        ref: defaultBranch
+                    },
+                    projectSettings: {
+                        framework: frameworkValue,
+                        buildCommand: buildCmd || null,
+                        outputDirectory: outputDir || null,
+                        installCommand: installCmd || null,
+                        rootDirectory: (rootDir && rootDir !== './' && rootDir !== '.') ? rootDir : null
+                    }
+                };
+
+                let vercelDeployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${vercelToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vercelDeployPayload)
+                });
+
+                if (!vercelDeployRes.ok) {
+                    const dErr = await vercelDeployRes.json().catch(() => ({}));
+                    throw new Error(dErr.error?.message || `Deployment API error (${vercelDeployRes.status})`);
+                }
+
+                let dData = {};
+                let deploymentId = "";
+                let inspectorUrl = `https://vercel.com`;
+                let liveUrl = `https://${cleanProjectName}.vercel.app`;
+                let initialReadyState = 'BUILDING';
+
+                if (vercelDeployRes.ok) {
+                    dData = await vercelDeployRes.json();
+                    deploymentId = dData.id || "";
+                    inspectorUrl = dData.inspectorUrl || inspectorUrl;
+                    initialReadyState = dData.readyState || 'BUILDING';
+                    if (dData.url) {
+                        liveUrl = dData.url.startsWith('http') ? dData.url : `https://${dData.url}`;
+                    }
+                }
+
+                // Create and store project record
+                const newProject = {
+                    id: cleanProjectName,
+                    deploymentId: deploymentId,
+                    url: `https://${cleanProjectName}.vercel.app`,
+                    deploymentUrl: liveUrl,
+                    inspectorUrl: inspectorUrl,
+                    github: `https://github.com/${CONFIG.USERNAME}/${cleanProjectName}`,
+                    date: new Date().toISOString(),
+                    status: (initialReadyState === 'READY' ? 'live' : 'building'),
+                    platform: 'vercel',
+                    preset: preset,
+                    config: {
+                        preset, rootDir, buildCmd, outputDir, installCmd, envVars
+                    }
+                };
+
+                saveVercelDeploymentRecord(newProject);
+                activeDeployments.add(cleanProjectName);
+
+                // Add to projects list
+                const existingIdx = projects.findIndex(p => p.id === cleanProjectName);
+                if (existingIdx >= 0) projects[existingIdx] = newProject;
+                else projects.unshift(newProject);
+
+                renderProjects();
+                renderAnalytics();
+
+                // Clear form
+                clearVercelFile();
+                document.getElementById('vercelProjectName').value = '';
+
+                // If Vercel is still building, initiate the real-time polling monitor!
+                if (deploymentId && initialReadyState !== 'READY') {
+                    showToast("Deployment queued on Vercel. Monitoring build progress...", "info");
+                    pollVercelBuildStatus(deploymentId, cleanProjectName);
+                } else {
+                    updateVercelProgress(100, "Vercel Deployment Live!", "Ready");
+                    showToast(`Deployed to Vercel: https://${cleanProjectName}.vercel.app`, "success");
+                    setGlobalFloatingProgress({
+                        visible: true,
+                        name: cleanProjectName,
+                        badge: 'ELIVORA',
+                        pct: 100,
+                        status: "Live & Ready!",
+                        time: "Ready",
+                        done: true
+                    });
+                    setTimeout(() => setGlobalFloatingProgress({ visible: false }), 4000);
+                }
+
+                switchView('dashboard', document.querySelectorAll('.nav-link-custom')[0]);
+
+            } catch (err) {
+                console.error("Vercel pipeline failure:", err);
+                showToast(err.message || "Failed to deploy to Vercel", "error");
+                setGlobalFloatingProgress({ visible: false });
+            } finally {
+                deployBtn.disabled = false;
+                isPipelineActive = false;
+                setTimeout(() => {
+                    progCont.classList.add('d-none');
+                    progBar.style.width = '0%';
+                }, 3000);
+            }
+        }
+
+        // --- Real-Time Vercel Build Polling (Resolves 404 DEPLOYMENT_NOT_FOUND) ---
+        async function pollVercelBuildStatus(deploymentId, cleanProjectName) {
+            let attempts = 0;
+            const maxAttempts = 40; // Poll for up to ~2 minutes
+            const pollStartTime = performance.now();
+
+            const pollInterval = setInterval(async () => {
+                attempts++;
+                const elapsedSec = Math.round((performance.now() - pollStartTime) / 1000);
+                const estRemaining = Math.max(5, 55 - elapsedSec);
+
+                try {
+                    const res = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
+                        headers: { 'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}` }
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        const state = data.readyState; // QUEUED, BUILDING, READY, ERROR, CANCELED
+
+                        setGlobalFloatingProgress({
+                            visible: true,
+                            name: cleanProjectName,
+                            badge: 'ELIVORA',
+                            pct: Math.min(98, 86 + Math.floor((attempts / maxAttempts) * 12)),
+                            status: `Elivora Cloud: ${state} (${elapsedSec}s)...`,
+                            time: state === 'READY' ? 'Ready!' : `Est. ~${estRemaining}s left`
+                        });
+
+                        const proj = projects.find(p => p.id === cleanProjectName);
+                        if (proj) {
+                            if (state === 'READY') {
+                                clearInterval(pollInterval);
+                                proj.status = 'live';
+                                proj.url = `https://${cleanProjectName}.vercel.app`;
+                                saveVercelDeploymentRecord(proj);
+                                renderProjects();
+
+                                setGlobalFloatingProgress({
+                                    visible: true,
+                                    name: cleanProjectName,
+                                    badge: 'ELIVORA',
+                                    pct: 100,
+                                    status: 'Deployment Live & Verified!',
+                                    time: `Done in ${elapsedSec}s`,
+                                    done: true
+                                });
+                                showToast(`Vercel build ready! Site is live at https://${cleanProjectName}.vercel.app`, 'success');
+                                setTimeout(() => setGlobalFloatingProgress({ visible: false }), 4500);
+
+                            } else if (state === 'ERROR' || state === 'CANCELED') {
+                                clearInterval(pollInterval);
+                                proj.status = 'failed';
+                                proj.error = data.error?.message || "Vercel build encountered an error. Check install/build commands or env vars.";
+                                saveVercelDeploymentRecord(proj);
+                                renderProjects();
+
+                                setGlobalFloatingProgress({
+                                    visible: true,
+                                    name: cleanProjectName,
+                                    badge: 'ELIVORA',
+                                    pct: 100,
+                                    status: 'Build Failed on Vercel',
+                                    time: 'Failed',
+                                    failed: true
+                                });
+                                showToast(`Vercel build failed: ${proj.error}. Click 'Settings' on card to adjust.`, 'error');
+                                setTimeout(() => setGlobalFloatingProgress({ visible: false }), 6000);
+
+                            } else {
+                                proj.status = 'building';
+                                updateCardUI(cleanProjectName);
+                            }
+                        }
+                    }
+
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        setGlobalFloatingProgress({ visible: false });
+                    }
+                } catch(e) {
+                    console.warn("Polling error:", e);
+                }
+            }, 3000);
+        }
+
+        // --- One-Click Auto Re-Deploy for Vercel ---
+        async function triggerAutoRedeploy(projectId) {
+            const savedList = getSavedVercelDeployments();
+            const proj = savedList.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
+            if (!proj) return showToast("Project details not found for re-deploy", "error");
+
+            if (!CONFIG.TOKEN || !CONFIG.VERCEL_TOKEN) {
+                return showToast("Please configure your GitHub and Vercel tokens in Settings.", "error");
+            }
+
+            startCardProcess(projectId, "Triggering Auto Re-Deploy...");
+            setGlobalFloatingProgress({
+                visible: true,
+                name: projectId,
+                badge: 'ELIVORA',
+                pct: 15,
+                status: "Requesting fresh Vercel build...",
+                time: "Starting..."
+            });
+
+            try {
+                // Fetch GitHub repo details to get current default branch
+                const repoInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${projectId}`);
+                const repoId = repoInfo.id;
+                const defaultBranch = repoInfo.default_branch || 'main';
+
+                // Retrieve saved project configuration for projectSettings
+                const pConfig = proj.config || {};
+                const frameworkMap = {
+                    "Next.js": "nextjs",
+                    "Vite": "vite",
+                    "React": "create-react-app",
+                    "Other": null
+                };
+                const frameworkVal = frameworkMap[pConfig.preset] || null;
+
+                // Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1
+                const vercelDeployPayload = {
+                    name: projectId,
+                    target: "production",
+                    gitSource: {
+                        type: "github",
+                        repoId: String(repoId),
+                        ref: defaultBranch
+                    },
+                    projectSettings: {
+                        framework: frameworkVal,
+                        buildCommand: pConfig.buildCmd || null,
+                        outputDirectory: pConfig.outputDir || null,
+                        installCommand: pConfig.installCmd || null,
+                        rootDirectory: (pConfig.rootDir && pConfig.rootDir !== './' && pConfig.rootDir !== '.') ? pConfig.rootDir : null
+                    }
+                };
+
+                const deployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vercelDeployPayload)
+                });
+
+                if (!deployRes.ok) {
+                    const err = await deployRes.json().catch(() => ({}));
+                    throw new Error(err.error?.message || "Failed to trigger Vercel deployment");
+                }
+
+                const dData = await deployRes.json();
+                const deploymentId = dData.id;
+                const inspectorUrl = dData.inspectorUrl || `https://vercel.com`;
+
+                proj.status = 'building';
+                proj.deploymentId = deploymentId;
+                proj.inspectorUrl = inspectorUrl;
+                saveVercelDeploymentRecord(proj);
+                updateCardUI(projectId);
+
+                finishCardProcess(projectId, "Build Triggered!");
+                showToast(`Auto Re-Deploy triggered for ${projectId}! Monitoring build...`, 'info');
+
+                pollVercelBuildStatus(deploymentId, projectId);
+
+            } catch (err) {
+                console.error("Auto Re-Deploy error:", err);
+                failCardProcess(projectId, err.message);
+                setGlobalFloatingProgress({ visible: false });
+            }
+        }
+
+        // --- Vercel Project Settings Modal Logic ---
+        function openVercelSettingsModal(projectId) {
+            const savedList = getSavedVercelDeployments();
+            const proj = savedList.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
+            if (!proj) return showToast("Project not found", "error");
+
+            document.getElementById('modalVercelProjectId').value = projectId;
+            
+            const cfg = proj.config || {};
+            document.getElementById('modalVercelPreset').value = cfg.preset || proj.preset || 'Other';
+            document.getElementById('modalVercelRootDir').value = cfg.rootDir || './';
+            document.getElementById('modalVercelBuildCmd').value = cfg.buildCmd || '';
+            document.getElementById('modalVercelOutputDir').value = cfg.outputDir || '';
+            document.getElementById('modalVercelInstallCmd').value = cfg.installCmd || 'npm install';
+
+            // Clear and populate env vars
+            const container = document.getElementById('modalEnvRowsContainer');
+            container.innerHTML = '';
+            const envs = cfg.envVars || [];
+            if (envs.length > 0) {
+                envs.forEach(ev => addEnvVariableRow(ev.key, ev.value, 'modalEnvRowsContainer'));
+            } else {
+                addEnvVariableRow('NODE_ENV', 'production', 'modalEnvRowsContainer');
+            }
+
+            document.getElementById('vercelSettingsModalOverlay').classList.add('active');
+        }
+
+        function saveVercelModalSettingsOnly() {
+            const projectId = document.getElementById('modalVercelProjectId').value;
+            const preset = document.getElementById('modalVercelPreset').value;
+            const rootDir = document.getElementById('modalVercelRootDir').value.trim();
+            const buildCmd = document.getElementById('modalVercelBuildCmd').value.trim();
+            const outputDir = document.getElementById('modalVercelOutputDir').value.trim();
+            const installCmd = document.getElementById('modalVercelInstallCmd').value.trim();
+            const envVars = getEnvVariablesFromContainer('modalEnvRowsContainer');
+
+            const proj = projects.find(p => p.id === projectId);
+            if (proj) {
+                proj.preset = preset;
+                proj.config = { preset, rootDir, buildCmd, outputDir, installCmd, envVars };
+                saveVercelDeploymentRecord(proj);
+                renderProjects();
+            }
+
+            closeModals();
+            showToast("Project settings saved locally!", "success");
+        }
+
+        async function saveAndAutoRedeployFromModal() {
+            const projectId = document.getElementById('modalVercelProjectId').value;
+            const preset = document.getElementById('modalVercelPreset').value;
+            const rootDir = document.getElementById('modalVercelRootDir').value.trim();
+            const buildCmd = document.getElementById('modalVercelBuildCmd').value.trim();
+            const outputDir = document.getElementById('modalVercelOutputDir').value.trim();
+            const installCmd = document.getElementById('modalVercelInstallCmd').value.trim();
+            const envVars = getEnvVariablesFromContainer('modalEnvRowsContainer');
+
+            const proj = projects.find(p => p.id === projectId);
+            if (proj) {
+                proj.preset = preset;
+                proj.config = { preset, rootDir, buildCmd, outputDir, installCmd, envVars };
+                saveVercelDeploymentRecord(proj);
+            }
+
+            closeModals();
+
+            // Update Vercel project configuration via API
+            showToast("Updating Vercel cloud project settings...", "info");
+            try {
+                const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
+                const updatePayload = {};
+                if (frameworkMap[preset] !== undefined) updatePayload.framework = frameworkMap[preset];
+                if (rootDir) updatePayload.rootDirectory = rootDir === './' ? null : rootDir;
+                if (buildCmd) updatePayload.buildCommand = buildCmd;
+                if (outputDir) updatePayload.outputDirectory = outputDir;
+                if (installCmd) updatePayload.installCommand = installCmd;
+                if (envVars.length > 0) updatePayload.environmentVariables = envVars;
+
+                await fetch(`https://api.vercel.com/v9/projects/${projectId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatePayload)
+                }).catch(() => {});
+            } catch(e) {}
+
+            // Now trigger fresh deployment
+            await triggerAutoRedeploy(projectId);
+        }
+
+        // --- Load & Render Deployments ---
+        async function loadDeployments() {
+            const grid = document.getElementById('projectGrid');
+            grid.innerHTML = `<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="text-muted mt-2">Loading deployments...</p></div>`;
+            
+            try {
+                const savedVercel = getSavedVercelDeployments();
+                let ghRepos = [];
+                
+                if (CONFIG.TOKEN) {
+                    ghRepos = await ghFetch(`/user/repos?affiliation=owner&sort=created&direction=desc&per_page=100`).catch(() => []);
+                }
+
+                const repoMap = new Map();
+
+                // Add GitHub repos
+                ghRepos.forEach(repo => {
+                    const savedState = localStatuses[repo.name] || { status: 'live', reason: '' };
+                    repoMap.set(repo.name, {
+                        id: repo.name,
+                        url: `https://${CONFIG.USERNAME || repo.owner.login}.github.io/${repo.name}/`,
+                        github: repo.html_url,
+                        date: repo.created_at,
+                        status: savedState.status,
+                        reason: savedState.reason,
+                        platform: 'github'
+                    });
+                });
+
+                // Merge Vercel projects
+                savedVercel.forEach(vp => {
+                    if (repoMap.has(vp.id)) {
+                        const existing = repoMap.get(vp.id);
+                        existing.url = vp.url;
+                        existing.platform = 'vercel';
+                        existing.preset = vp.preset;
+                        existing.status = vp.status || existing.status;
+                        existing.deploymentId = vp.deploymentId;
+                        existing.inspectorUrl = vp.inspectorUrl;
+                        existing.config = vp.config;
+                        existing.error = vp.error;
+                    } else {
+                        repoMap.set(vp.id, vp);
+                    }
+                });
+
+                projects = Array.from(repoMap.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                renderProjects();
+                renderAnalytics();
+            } catch (err) {
+                console.error(err);
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-danger"><i class="bi bi-wifi-off fs-1"></i><p>Connection Error. Check API Token in Settings.</p></div>`;
+            }
+        }
+
+        async function backgroundPingSync() {
+            if (!CONFIG.TOKEN || isPipelineActive) return;
+            try {
+                const repos = await ghFetch(`/user/repos?affiliation=owner&sort=created&direction=desc&per_page=100`);
+                let changed = false;
+                const fetchedIds = repos.map(r => r.name);
+                const existingIds = projects.map(p => p.id);
+
+                fetchedIds.forEach(id => {
+                    if (!existingIds.includes(id)) {
+                        const repo = repos.find(r => r.name === id);
+                        projects.unshift({
+                            id: repo.name,
+                            url: `https://${CONFIG.USERNAME}.github.io/${repo.name}/`,
+                            github: repo.html_url,
+                            date: repo.created_at,
+                            status: 'live',
+                            platform: 'github'
+                        });
+                        changed = true;
+                    }
+                });
+
+                projects = projects.filter(p => {
+                    if (activeDeployments.has(p.id) || p.platform === 'vercel') return true;
+                    return fetchedIds.includes(p.id);
+                });
+
+                if (changed) {
+                    renderProjects();
+                    renderAnalytics();
+                }
+            } catch(e) {}
+        }
+
+        // --- Card Generation & UI ---
+        function generateCardHTML(p) {
+            const cacheBuster = new Date().getTime();
+            const isLive = p.status === 'live';
+            const isBuilding = p.status === 'building';
+            const isFailed = p.status === 'failed';
+            const isVercel = p.platform === 'vercel';
+            
+            let previewHTML = '';
+            if (isLive) {
+                previewHTML = `
+                    <iframe src="${p.url}?t=${cacheBuster}" class="preview-iframe" scrolling="no" loading="lazy" sandbox="allow-scripts allow-same-origin"></iframe>
+                    <div class="preview-shield" onclick="window.open('${p.url}', '_blank')"></div>
+                `;
+            } else if (isBuilding) {
+                previewHTML = `
+                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white p-3 text-center">
+                    <div class="spinner-border text-primary mb-2" style="width: 1.8rem; height: 1.8rem;"></div>
+                    <span class="fw-bold small text-uppercase text-main">Building on Elivora Cloud...</span>
+                    <span class="text-muted small mt-1" style="font-size:0.75rem;">Provisioning serverless runtime & building</span>
+                </div>`;
+            } else if (isFailed) {
+                previewHTML = `
+                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-white p-3 text-center">
+                    <i class="bi bi-exclamation-triangle-fill fs-2 mb-1 text-danger"></i>
+                    <span class="fw-bold small text-uppercase text-danger">Build Failed</span>
+                    <span class="text-muted small mt-1 text-truncate w-100 px-2" style="font-size:0.75rem;">${escapeHtml(p.error || 'Check build command or env vars')}</span>
+                    <div class="d-flex gap-2 mt-2">
+                        ${p.inspectorUrl ? `<a href="${p.inspectorUrl}" target="_blank" class="btn btn-sm btn-outline-dark py-1 px-2" style="font-size:0.72rem;">Logs</a>` : ''}
+                        <button class="btn btn-sm btn-primary-custom py-1 px-2" style="font-size:0.72rem;" onclick="triggerAutoRedeploy('${p.id}')"><i class="bi bi-arrow-repeat"></i> Re-deploy</button>
+                    </div>
+                </div>`;
+            } else {
+                previewHTML = `
+                <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-light text-main p-3 text-center">
+                    <i class="bi bi-tools fs-2 mb-2 text-warning"></i>
+                    <span class="fw-bold small text-uppercase text-warning">Maintenance Active</span>
+                    <span class="small mt-1 fst-italic text-truncate w-100 px-2 text-muted" style="font-size:0.75rem;">"${p.reason || 'Under update'}"</span>
+                </div>`;
+            }
+
+            const platformBadge = `<span class="badge bg-light text-dark border" style="font-size:0.65rem; border-color: var(--border-color) !important;"><i class="bi bi-cloud-check text-dark me-1"></i> ELIVORA</span>`;
+
+            let statusBadge = '';
+            if (isLive) {
+                statusBadge = `<span class="status-badge live"><span class="status-dot"></span> LIVE</span>`;
+            } else if (isBuilding) {
+                statusBadge = `<span class="status-badge paused" style="background: var(--primary-light); color: var(--text-main);"><span class="spinner-border spinner-border-sm me-1" style="width:10px; height:10px; border-width: 1.5px;"></span> BUILDING</span>`;
+            } else if (isFailed) {
+                statusBadge = `<span class="status-badge failed"><span class="status-dot"></span> FAILED</span>`;
+            } else {
+                statusBadge = `<span class="status-badge paused"><span class="status-dot"></span> UPDATING</span>`;
+            }
+
+            return `
+                <div class="col-12 col-md-6 col-xl-4 col-xxl-3 repo-card-wrapper" data-id="${p.id}" id="repo-card-${p.id}">
+                    <div class="saas-card p-3 h-100 d-flex flex-column">
+                        
+                        <div class="card-process-overlay" id="process-overlay-${p.id}">
+                            <div class="spinner-border text-primary mb-2" style="width: 2rem; height: 2rem;" id="process-spinner-${p.id}"></div>
+                            <h6 class="fw-bold text-main mb-3" id="process-title-${p.id}">Processing...</h6>
+                            <div class="w-100 px-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small text-muted fw-bold" style="font-size:0.7rem;">PROGRESS</span>
+                                    <span class="small fw-bold text-primary" id="process-text-${p.id}">0%</span>
+                                </div>
+                                <div class="progress" style="height: 6px; background: var(--border-color);">
+                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" id="process-bar-${p.id}" style="width: 0%; transition: 0.1s linear;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="preview-wrapper">${previewHTML}</div>
+                        <div class="d-flex justify-content-between align-items-start mb-2 mt-1">
+                            <div class="d-flex align-items-center gap-1 text-truncate pe-2">
+                                <h5 class="fw-bold mb-0 text-truncate text-main" title="${p.id}">${p.id}</h5>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                ${platformBadge}
+                                ${statusBadge}
+                            </div>
+                        </div>
+                        <a href="${isLive ? p.url : '#'}" target="${isLive ? '_blank' : '_self'}" class="text-muted text-decoration-none small mb-3 d-block text-truncate">${p.url.replace('https://', '')}</a>
+                        
+                        <div class="mt-auto d-flex align-items-center justify-content-between pt-3 border-top" style="border-color: var(--border-color) !important;">
+                            <div class="d-flex align-items-center gap-2">
+                                <a href="${p.github}" target="_blank" class="text-main text-decoration-none d-flex align-items-center gap-1" title="Source Repository" style="font-size: 0.78rem; font-weight: 500;"><i class="bi bi-code-slash fs-5"></i></a>
+                                ${isVercel ? `<button class="btn btn-sm border bg-white text-main d-flex align-items-center gap-1 py-1 px-2" onclick="triggerAutoRedeploy('${p.id}')" title="Auto Re-Deploy on Vercel" style="font-size: 0.75rem; border-color: var(--border-color) !important;"><i class="bi bi-arrow-repeat"></i> Re-deploy</button>` : ''}
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn border-0 text-muted p-1" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><button class="dropdown-item" onclick="copyUrl('${p.url}')"><i class="bi bi-clipboard me-2"></i> Copy URL</button></li>
+                                    <li><button class="dropdown-item" onclick="window.open('${p.url}', '_blank')"><i class="bi bi-box-arrow-up-right me-2"></i> Open Site</button></li>
+                                    ${isVercel ? `<li><button class="dropdown-item" onclick="triggerAutoRedeploy('${p.id}')"><i class="bi bi-arrow-repeat me-2"></i> Auto Re-Deploy</button></li>` : ''}
+                                    ${isVercel ? `<li><button class="dropdown-item" onclick="openVercelSettingsModal('${p.id}')"><i class="bi bi-sliders me-2"></i> Project Settings & Env</button></li>` : ''}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button class="dropdown-item" onclick="openRenameModal('${p.id}')"><i class="bi bi-input-cursor-text me-2"></i> Rename</button></li>
+                                    <li><button class="dropdown-item text-warning fw-bold" onclick="openPauseModal('${p.id}')"><i class="bi bi-pause-circle me-2"></i> Maintenance</button></li>
+                                    <li><button class="dropdown-item text-success fw-bold" onclick="executeResume('${p.id}')"><i class="bi bi-play-circle me-2"></i> Resume</button></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button class="dropdown-item text-danger fw-bold" onclick="promptDeleteModal('${p.id}')"><i class="bi bi-trash3-fill me-2"></i> Delete</button></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function filterProjects() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            document.querySelectorAll('.repo-card-wrapper').forEach(card => {
+                const id = card.getAttribute('data-id').toLowerCase();
+                card.style.display = id.includes(query) ? '' : 'none';
+            });
+        }
+
+        function renderProjects() {
+            const grid = document.getElementById('projectGrid');
+            if (!projects.length) {
+                grid.innerHTML = `<div class="col-12 text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No deployments found yet. Launch a static or Vercel project to get started.</div>`;
+                return;
+            }
+            grid.innerHTML = projects.map(p => generateCardHTML(p)).join('');
+        }
+
+        function updateCardUI(id) {
+            const p = projects.find(x => x.id === id);
+            if (!p) return;
+            const el = document.getElementById(`repo-card-${id}`);
+            if (el) {
+                const temp = document.createElement('div');
+                temp.innerHTML = generateCardHTML(p);
+                el.replaceWith(temp.firstElementChild);
+            }
+        }
+
+        // --- Analytics Velocity Chart ---
+        function renderAnalytics() {
+            document.getElementById('statTotal').innerText = projects.length;
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            const recent = projects.filter(p => new Date(p.date) >= sevenDaysAgo).length;
+            document.getElementById('statRecent').innerText = recent;
+
+            const days = [];
+            const counts = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(now.getTime() - (i * 24 * 60 * 60 * 1000));
+                const dStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                days.push(dStr);
+                const count = projects.filter(p => {
+                    const pDate = new Date(p.date);
+                    return pDate.getDate() === d.getDate() && pDate.getMonth() === d.getMonth();
+                }).length;
+                counts.push(count);
+            }
+
+            const canvas = document.getElementById('analyticsChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (analyticsChartInstance) analyticsChartInstance.destroy();
+
+            analyticsChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [{
+                        label: 'Deployments',
+                        data: counts,
+                        borderColor: '#0f172a',
+                        backgroundColor: 'rgba(15, 23, 42, 0.04)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#0f172a',
+                        pointBorderColor: '#ffffff',
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: '#0f172a',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            padding: 10,
+                            displayColors: false,
+                            cornerRadius: 6
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0, color: '#64748b' },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            ticks: { color: '#64748b' },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Card Async Operations & Overlay Helpers ---
+        function startCardProcess(id, title) {
+            const overlay = document.getElementById(`process-overlay-${id}`);
+            if (!overlay) return;
+            overlay.classList.add('active');
+            document.getElementById(`process-title-${id}`).innerText = title;
+            document.getElementById(`process-text-${id}`).innerText = '0%';
+            document.getElementById(`process-bar-${id}`).style.width = '0%';
+            document.getElementById(`process-bar-${id}`).className = 'progress-bar bg-primary progress-bar-striped progress-bar-animated';
+            document.getElementById(`process-spinner-${id}`).style.display = 'block';
+        }
+
+        function finishCardProcess(id, successTitle, isDelete = false) {
+            const overlay = document.getElementById(`process-overlay-${id}`);
+            if (!overlay) return;
+            document.getElementById(`process-bar-${id}`).style.width = '100%';
+            document.getElementById(`process-text-${id}`).innerText = '100%';
+            document.getElementById(`process-spinner-${id}`).style.display = 'none';
+            document.getElementById(`process-title-${id}`).innerHTML = `<i class="bi bi-check-circle-fill text-success me-1"></i> ${successTitle}`;
+
+            setTimeout(() => {
+                if (isDelete) {
+                    const card = document.getElementById(`repo-card-${id}`);
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.85)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                } else {
+                    overlay.classList.remove('active');
+                    updateCardUI(id);
+                }
+            }, 1200);
+        }
+
+        function failCardProcess(id, errorMsg) {
+            const overlay = document.getElementById(`process-overlay-${id}`);
+            if (!overlay) return;
+            document.getElementById(`process-spinner-${id}`).style.display = 'none';
+            document.getElementById(`process-bar-${id}`).className = 'progress-bar bg-danger';
+            document.getElementById(`process-title-${id}`).innerHTML = `<i class="bi bi-x-circle-fill text-danger me-1"></i> Failed`;
+            showToast(errorMsg, 'error');
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 2000);
+        }
+
+        // --- Modals & Repo Actions ---
+        let targetDeleteId = '';
+        function promptDeleteModal(id) {
+            targetDeleteId = id;
+            document.getElementById('confirmDeleteName').innerText = id;
+            document.getElementById('confirmDeleteOverlay').classList.add('active');
+        }
+
+        async function executeConfirmedDelete() {
+            closeModals();
+            const id = targetDeleteId;
+            startCardProcess(id, "Deleting Repository...");
+            try {
+                await ghFetch(`/repos/${CONFIG.USERNAME}/${id}`, { method: 'DELETE' });
+                // Also remove from saved vercel
+                const vList = getSavedVercelDeployments().filter(x => x.id !== id);
+                localStorage.setItem('elivora_vercel_projects', JSON.stringify(vList));
+                projects = projects.filter(x => x.id !== id);
+                finishCardProcess(id, "Deleted", true);
+                showToast(`Repository ${id} deleted`, 'info');
+                renderAnalytics();
+            } catch (err) {
+                failCardProcess(id, err.message);
+            }
+        }
+
+        function openRenameModal(oldName) {
+            document.getElementById('renameOldName').value = oldName;
+            document.getElementById('renameNewName').value = oldName;
+            document.getElementById('renameModalOverlay').classList.add('active');
+        }
+
+        async function executeRename() {
+            const oldName = document.getElementById('renameOldName').value;
+            const newName = document.getElementById('renameNewName').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+            closeModals();
+            if (!newName || newName === oldName) return;
+
+            startCardProcess(oldName, "Renaming Project...");
+            try {
+                await ghFetch(`/repos/${CONFIG.USERNAME}/${oldName}`, { 
+                    method: 'PATCH', 
+                    body: JSON.stringify({ name: newName }) 
+                });
+                
+                const proj = projects.find(x => x.id === oldName);
+                if (proj) {
+                    proj.id = newName;
+                    if (proj.platform === 'github') {
+                        proj.url = `https://${CONFIG.USERNAME}.github.io/${newName}/`;
+                    }
+                    proj.github = `https://github.com/${CONFIG.USERNAME}/${newName}`;
+                }
+
+                finishCardProcess(oldName, "Renamed!");
+                showToast(`Repository renamed to ${newName}`, 'success');
+                setTimeout(() => location.reload(), 1200);
+            } catch (err) {
+                failCardProcess(oldName, err.message);
+            }
+        }
+
+        function toggleCustomHtml() {
+            const isCustom = document.getElementById('useCustomHtmlToggle').checked;
+            document.getElementById('standardPauseInput').classList.toggle('d-none', isCustom);
+            document.getElementById('customPauseInput').classList.toggle('d-none', !isCustom);
+        }
+
+        function openPauseModal(id) {
+            document.getElementById('pauseProjectId').value = id;
+            document.getElementById('pauseModalOverlay').classList.add('active');
+        }
+
+        async function executeGlobalPause() {
+            const id = document.getElementById('pauseProjectId').value;
+            const isCustom = document.getElementById('useCustomHtmlToggle').checked;
+            const reason = document.getElementById('pauseReasonInput').value.trim() || 'Site temporarily undergoing maintenance.';
+            const customCode = document.getElementById('pauseCustomHtmlCode').value.trim();
+            closeModals();
+
+            startCardProcess(id, "Deploying Maintenance Notice...");
+            const htmlContent = isCustom && customCode ? customCode : `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Maintenance</title><style>body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;}</style></head><body><div><h1>Under Maintenance</h1><p>${escapeHtml(reason)}</p></div></body></html>`;
+
+            try {
+                let sha = null;
+                try {
+                    const idxFile = await ghFetch(`/repos/${CONFIG.USERNAME}/${id}/contents/index.html`);
+                    if (idxFile && idxFile.sha) sha = idxFile.sha;
+                } catch(e) {}
+
+                const putPayload = { message: "Deploy maintenance mode", content: btoa(unescape(encodeURIComponent(htmlContent))) };
+                if (sha) putPayload.sha = sha;
+
+                await ghFetch(`/repos/${CONFIG.USERNAME}/${id}/contents/index.html`, { 
+                    method: 'PUT', 
+                    body: JSON.stringify(putPayload) 
+                });
+
+                localStatuses[id] = { status: 'paused', reason: reason };
+                localStorage.setItem('elivora_statuses', JSON.stringify(localStatuses));
+
+                const proj = projects.find(x => x.id === id);
+                if (proj) { proj.status = 'paused'; proj.reason = reason; }
+
+                finishCardProcess(id, "Maintenance Live");
+                showToast("Maintenance mode deployed", 'warning');
+            } catch (err) {
+                failCardProcess(id, err.message);
+            }
+        }
+
+        async function executeResume(id) {
+            startCardProcess(id, "Resuming Website...");
+            try {
+                localStatuses[id] = { status: 'live', reason: '' };
+                localStorage.setItem('elivora_statuses', JSON.stringify(localStatuses));
+
+                const proj = projects.find(x => x.id === id);
+                if (proj) { proj.status = 'live'; proj.reason = ''; }
+
+                finishCardProcess(id, "Live Ready");
+                showToast("Site resumed to live status", 'success');
+            } catch (err) {
+                failCardProcess(id, err.message);
+            }
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.elivora-overlay').forEach(el => el.classList.remove('active'));
+        }
+
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url);
+            showToast('Deployment URL copied to clipboard!', 'info');
+        }
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-item ${type}`;
+            const iconMap = {
+                'error': '<i class="bi bi-x-circle-fill"></i>',
+                'success': '<i class="bi bi-check-circle-fill text-success"></i>',
+                'warning': '<i class="bi bi-exclamation-triangle-fill text-warning"></i>',
+                'info': '<i class="bi bi-info-circle-fill"></i>'
+            };
+            toast.innerHTML = `${iconMap[type] || ''}<span>${escapeHtml(msg)}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- Application Bootstrap ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // Setup default tokens in Settings UI
+            if (CONFIG.USERNAME) document.getElementById('cfgUsername').value = CONFIG.USERNAME;
+            if (CONFIG.TOKEN && !CONFIG.TOKEN.includes('{{')) document.getElementById('cfgToken').value = CONFIG.TOKEN;
+            if (CONFIG.VERCEL_TOKEN && !CONFIG.VERCEL_TOKEN.includes('{{')) document.getElementById('cfgVercelToken').value = CONFIG.VERCEL_TOKEN;
+
+            // Drag & drop listeners
+            setupDragDropZone('staticDropZone', 'staticFileInput', onStaticFileChosen);
+            setupDragDropZone('vercelDropZone', 'vercelFileInput', onVercelFileChosen);
+
+            // Populate initial env row
+            addEnvVariableRow('NODE_ENV', 'production');
+            checkActiveFloatingProgress();
+
+            // Load repositories
+            if (CONFIG.TOKEN && !CONFIG.TOKEN.includes('{{')) {
+                loadDeployments();
+                setInterval(backgroundPingSync, 20000);
+            } else {
+                switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
+                showToast("Please enter your API credentials in Settings.", "warning");
+            }
+        });
+    </script>
+</body>
+</html>
