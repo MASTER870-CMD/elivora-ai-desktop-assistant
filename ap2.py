@@ -2,6 +2,7 @@ import os
 import asyncio
 
 import asyncio
+from contextlib import AsyncExitStack
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
@@ -4024,15 +4025,18 @@ class AudioLoop:
                                 result_text = await asyncio.to_thread(google_search_api, query)
                                 function_responses.append(types.FunctionResponse(name=fc.name, id=fc.id, response={"result": result_text}))
                         
-                            elif fc.name.startswith("mcp_"):
-                                real_name = fc.name[4:].replace("_", "-")
-                                print(f"[MCP] Forwarding to {real_name} with args {fc.args}")
-                                try:
-                                    mcp_res = await self.mcp_session.call_tool(real_name, arguments=dict(fc.args) if fc.args else {})
-                                    result_text = "\n".join([c.text for c in mcp_res.content if c.type == 'text'])
-                                    if not result_text: result_text = "Success"
-                                except Exception as e:
-                                    result_text = f"Error: {e}"
+                            elif fc.name.startswith("mcp1_") or fc.name.startswith("mcp2_"):
+                                if fc.name in self.mcp_tool_map:
+                                    real_name, target_session = self.mcp_tool_map[fc.name]
+                                    print(f"[MCP] Forwarding to {real_name} on target session with args {fc.args}")
+                                    try:
+                                        mcp_res = await target_session.call_tool(real_name, arguments=dict(fc.args) if fc.args else {})
+                                        result_text = "\n".join([c.text for c in mcp_res.content if c.type == 'text'])
+                                        if not result_text: result_text = "Success"
+                                    except Exception as e:
+                                        result_text = f"Error: {e}"
+                                else:
+                                    result_text = f"Error: MCP Tool map entry not found for {fc.name}"
                                 function_responses.append(types.FunctionResponse(name=fc.name, id=fc.id, response={"result": result_text}))
 
                         if function_responses:
@@ -4063,29 +4067,62 @@ class AudioLoop:
                 if self.audio_in_queue.empty(): IS_SPEAKING = False; CURRENT_AI_VOLUME = 0.0
 
     async def run(self):
-        # Setup MCP Server
-        server_params = StdioServerParameters(
-            command=r"windows-mcp-server-bin\windows-mcp-server.exe",
-            args=["stdio", "--toolsets", "all"],
-            env=None
-        )
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as mcp_session:
-                await mcp_session.initialize()
-                self.mcp_session = mcp_session
-                print("[SYSTEM] Connected to Windows MCP Server (all toolsets)")
+        # Setup MCP Servers dynamically
+        self.mcp_tool_map = {}
+        
+        async with AsyncExitStack() as stack:
+            # 1. Windows MCP Server
+            try:
+                server1_params = StdioServerParameters(
+                    command=r"windows-mcp-server-bin\windows-mcp-server.exe",
+                    args=["stdio", "--toolsets", "all"],
+                    env=None
+                )
+                read1, write1 = await stack.enter_async_context(stdio_client(server1_params))
+                session1 = await stack.enter_async_context(ClientSession(read1, write1))
+                await session1.initialize()
+                print("[SYSTEM] Connected to Windows MCP Server")
                 
-                # Fetch tools
-                mcp_tools_resp = await mcp_session.list_tools()
-                
-                for tool in mcp_tools_resp.tools:
-                    if not any(fd.name == "mcp_" + tool.name.replace("-", "_") for fd in CONFIG.tools[0].function_declarations):
+                tools1_resp = await session1.list_tools()
+                for tool in tools1_resp.tools:
+                    safe_name = "mcp1_" + tool.name.replace("-", "_")
+                    self.mcp_tool_map[safe_name] = (tool.name, session1)
+                    if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
                         fd = types.FunctionDeclaration(
-                            name="mcp_" + tool.name.replace("-", "_"),
+                            name=safe_name,
                             description=tool.description[:1000] if tool.description else "",
                             parameters=dict_to_schema(tool.input_schema)
                         )
                         CONFIG.tools[0].function_declarations.append(fd)
+            except Exception as e:
+                print(f"[ERROR] Failed to start Windows MCP: {e}")
+
+            # 2. Playwright MCP Server
+            try:
+                server2_params = StdioServerParameters(
+                    command="npx.cmd",
+                    args=["-y", "@playwright/mcp@latest"],
+                    env=None
+                )
+                read2, write2 = await stack.enter_async_context(stdio_client(server2_params))
+                session2 = await stack.enter_async_context(ClientSession(read2, write2))
+                await session2.initialize()
+                print("[SYSTEM] Connected to Playwright MCP Server")
+                
+                tools2_resp = await session2.list_tools()
+                for tool in tools2_resp.tools:
+                    safe_name = "mcp2_" + tool.name.replace("-", "_")
+                    self.mcp_tool_map[safe_name] = (tool.name, session2)
+                    if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
+                        fd = types.FunctionDeclaration(
+                            name=safe_name,
+                            description=tool.description[:1000] if tool.description else "",
+                            parameters=dict_to_schema(tool.input_schema)
+                        )
+                        CONFIG.tools[0].function_declarations.append(fd)
+            except Exception as e:
+                print(f"[ERROR] Failed to start Playwright MCP: {e}")
+                
                 
                 while True:
                     try:
