@@ -4122,38 +4122,38 @@ class AudioLoop:
                         CONFIG.tools[0].function_declarations.append(fd)
             except Exception as e:
                 print(f"[ERROR] Failed to start Playwright MCP: {e}")
-                
-                
-                while True:
-                    try:
-                        active_client = get_next_client()
-                        async with (
-                            active_client.aio.live.connect(model=MODEL, config=CONFIG) as session,
-                            asyncio.TaskGroup() as tg,
-                        ):
-                            self.session = session
-                            self.audio_in_queue = asyncio.Queue()
-                            self.out_queue = asyncio.Queue(maxsize=5)
 
-                            tg.create_task(self.send_text_realtime()) 
-                            tg.create_task(self.send_realtime())
-                            tg.create_task(self.listen_audio())
-                            tg.create_task(self.get_frames())
-                            tg.create_task(self.receive_audio())
-                            tg.create_task(self.play_audio())
+            # Main Gemini Live connection loop (inside AsyncExitStack, outside try/except)
+            while True:
+                try:
+                    active_client = get_next_client()
+                    async with (
+                        active_client.aio.live.connect(model=MODEL, config=CONFIG) as session,
+                        asyncio.TaskGroup() as tg,
+                    ):
+                        self.session = session
+                        self.audio_in_queue = asyncio.Queue()
+                        self.out_queue = asyncio.Queue(maxsize=5)
 
-                            while True: 
-                                await asyncio.sleep(1)
-                    except asyncio.CancelledError:
-                        break
-                    except (ExceptionGroup, Exception) as err:
-                        if self.audio_stream is not None:
-                            try:
-                                self.audio_stream.close()
-                            except Exception:
-                                pass
-                        print(f"\\n[SYSTEM] Connection terminated or key quota exhausted ({err}). Seamlessly switching to next key...")
-                        await asyncio.sleep(1)
+                        tg.create_task(self.send_text_realtime()) 
+                        tg.create_task(self.send_realtime())
+                        tg.create_task(self.listen_audio())
+                        tg.create_task(self.get_frames())
+                        tg.create_task(self.receive_audio())
+                        tg.create_task(self.play_audio())
+
+                        while True: 
+                            await asyncio.sleep(1)
+                except asyncio.CancelledError:
+                    break
+                except (ExceptionGroup, Exception) as err:
+                    if self.audio_stream is not None:
+                        try:
+                            self.audio_stream.close()
+                        except Exception:
+                            pass
+                    print(f"\\n[SYSTEM] Connection terminated or key quota exhausted ({err}). Seamlessly switching to next key...")
+                    await asyncio.sleep(1)
 
 # =====================================================================
 # MAIN EXECUTION SEQUENCE
