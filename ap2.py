@@ -1,5 +1,44 @@
 import os
 import asyncio
+
+import asyncio
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+def dict_to_schema(d):
+    if not isinstance(d, dict): return None
+    t_raw = d.get('type', 'string')
+    if isinstance(t_raw, list):
+        t_raw = t_raw[0] if t_raw else 'string'
+    t_str = str(t_raw).upper()
+    
+    try:
+        from google.genai import types
+        t = getattr(types.Type, t_str)
+    except:
+        t = types.Type.STRING
+    
+    props = d.get('properties', {})
+    schema_props = {k: dict_to_schema(v) for k, v in props.items() if isinstance(v, dict)} if props else None
+    
+    items = d.get('items')
+    if isinstance(items, list) and len(items) > 0:
+        items = items[0]
+    schema_items = dict_to_schema(items) if items else None
+    
+    if t == types.Type.ARRAY and schema_items is None:
+        schema_items = types.Schema(type=types.Type.STRING)
+        
+    req = d.get('required', [])
+    if not isinstance(req, list): req = []
+    
+    return types.Schema(
+        type=t,
+        description=str(d.get('description', ''))[:1000],
+        properties=schema_props,
+        items=schema_items,
+        required=req if req else None
+    )
 import io
 import traceback
 import cv2
@@ -1643,24 +1682,9 @@ CLOUD_HTML = r"""
             </section>
 
             <!-- 3. DEPLOYMENT VIEW (DUAL-PIPELINE) -->
-           <!-- 3. DEPLOYMENT VIEW (DUAL-PIPELINE) -->
             <section id="deploy" class="view-section">
                 <div class="row justify-content-center">
                     <div class="col-12 col-lg-9 col-xl-7">
-                        <!-- Prominent Pipeline Error Banner -->
-                        <div id="pipelineErrorBanner" class="alert alert-danger d-none border-2 shadow-sm mb-4 p-3 rounded-3" role="alert">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <div class="d-flex align-items-start gap-3">
-                                    <i class="bi bi-exclamation-octagon-fill fs-3 text-danger flex-shrink-0 mt-1"></i>
-                                    <div>
-                                        <h5 class="fw-bold text-danger mb-1" id="pipelineErrorTitle">Deployment Pipeline Error</h5>
-                                        <p class="mb-0 text-dark small" id="pipelineErrorMessage">An error occurred during deployment.</p>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn-close" onclick="dismissPipelineError()"></button>
-                            </div>
-                        </div>
-
                         <div class="saas-card p-4 p-md-5 mb-5">
                             <h4 class="fw-bold text-main mb-1">Dual-Pipeline Deployment</h4>
                             <p class="text-muted small mb-4">Select your architecture: Static (GitHub Pages) or Node.js Fullstack (Vercel).</p>
@@ -1789,10 +1813,7 @@ CLOUD_HTML = r"""
                                             <div class="fw-bold text-main small text-uppercase">Environment Variables</div>
                                             <div class="text-muted small">Key-value parameters injected into build & runtime</div>
                                         </div>
-                                        <div class="d-flex gap-2 flex-wrap">
-                                            <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="syncEnvFromLocalEnv('envRowsContainer')" title="Auto-load API keys from your workspace .env file">
-                                                <i class="bi bi-download me-1"></i> Load from .env
-                                            </button>
+                                        <div class="d-flex gap-2">
                                             <input type="file" id="envFileInput" accept=".env,.env.*,.txt" class="d-none" onchange="handleEnvFileSelect(event)">
                                             <button type="button" class="btn btn-sm border bg-white text-main fw-semibold px-2 py-1" onclick="document.getElementById('envFileInput').click()" title="Upload a .env file">
                                                 <i class="bi bi-file-earmark-arrow-up me-1"></i> Import .env
@@ -1918,12 +1939,11 @@ CLOUD_HTML = r"""
 
     <!-- Application JavaScript Engine -->
     <script>
-       const CONFIG = {
-            USERNAME: localStorage.getItem('elivora_gh_user') || '{{GITHUB_USERNAME_PLACEHOLDER}}',
+        const CONFIG = {
+            USERNAME: localStorage.getItem('elivora_gh_user') || '',
             TOKEN: localStorage.getItem('elivora_gh_token') || '{{GITHUB_TOKEN_PLACEHOLDER}}',
             VERCEL_TOKEN: localStorage.getItem('elivora_vercel_token') || '{{VERCEL_TOKEN_PLACEHOLDER}}'
         };
-        
 
         let projects = [];
         let activeDeployments = new Set();
@@ -2682,118 +2702,23 @@ CLOUD_HTML = r"""
             }
         }
 
-        // =====================================================================
-        // HELPER: Push environment variables to Vercel project via correct API
-        // =====================================================================
-        async function pushEnvVarsToVercel(projectId, envVars, vercelToken) {
-            if (!envVars || envVars.length === 0) return;
-            try {
-                // First fetch existing env vars so we can delete them before re-adding
-                const existingRes = await fetch(`/vercel_api/v10/projects/${projectId}/env`, {
-                    headers: { 'Authorization': `Bearer ${vercelToken}` }
-                });
-                if (existingRes.ok) {
-                    const existingData = await existingRes.json();
-                    const existingEnvs = existingData.envs || [];
-                    // Delete existing vars that match our keys to avoid duplicates
-                    const keysToUpdate = new Set(envVars.map(e => e.key));
-                    for (const env of existingEnvs) {
-                        if (keysToUpdate.has(env.key)) {
-                            await fetch(`/vercel_api/v10/projects/${projectId}/env/${env.id}`, {
-                                method: 'DELETE',
-                                headers: { 'Authorization': `Bearer ${vercelToken}` }
-                            }).catch(() => {});
-                        }
-                    }
-                }
-                // Now add all env vars fresh
-                for (const ev of envVars) {
-                    await fetch(`/vercel_api/v10/projects/${projectId}/env`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${vercelToken}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            key: ev.key,
-                            value: ev.value,
-                            type: 'plain',
-                            target: ['production', 'preview', 'development']
-                        })
-                    }).catch(() => {});
-                }
-            } catch(e) {
-                console.warn('[Elivora] pushEnvVarsToVercel warning:', e);
-            }
-        }
-
-        // =====================================================================
-        // HELPER: Compute SHA1 hex string for Vercel file upload (Web Crypto API)
-        // =====================================================================
-        async function sha1Hex(uint8Array) {
-            const hashBuffer = await crypto.subtle.digest('SHA-1', uint8Array);
-            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        // =====================================================================
-        // HELPER: Fetch with retry logic for robust API calls
-        // =====================================================================
-        async function fetchWithRetry(url, options = {}, retries = 3) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const res = await fetch(url, options);
-                    if (!res.ok && res.status >= 500) {
-                        if (i === retries - 1) return res;
-                        await new Promise(r => setTimeout(r, 1000 * (i + 1))); // exponential backoff
-                        continue;
-                    }
-                    return res;
-                } catch (err) {
-                    if (i === retries - 1) throw err;
-                    await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-                }
-            }
-        }
-
-        // --- Deploy Pipeline 2: Node.js / Dynamic App (Vercel — Direct File Upload) ---
-        // --- Error Banner Helpers ---
-        function showPipelineError(title, message) {
-            const banner = document.getElementById('pipelineErrorBanner');
-            const titleEl = document.getElementById('pipelineErrorTitle');
-            const msgEl = document.getElementById('pipelineErrorMessage');
-            if (banner && titleEl && msgEl) {
-                titleEl.innerText = title || "Deployment Pipeline Failed";
-                msgEl.innerText = message || "An unexpected error occurred during the process.";
-                banner.classList.remove('d-none');
-                banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            showToast(message, 'error');
-        }
-
-        function dismissPipelineError() {
-            const banner = document.getElementById('pipelineErrorBanner');
-            if (banner) banner.classList.add('d-none');
-        }
-
-        // --- Deploy Pipeline 2: Node.js / Dynamic App (GitHub Push + Vercel Deployment) ---
+        // --- Deploy Pipeline 2: Node.js (Vercel) ---
         async function triggerVercelDeploy() {
-            dismissPipelineError();
-
-            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
             const ghToken = (CONFIG.TOKEN || "").trim();
+            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
 
-            if (!vercelToken) {
-                showPipelineError("Authentication Missing", "Vercel Access Token is required. Please set it in Settings.");
+            if (!ghToken) {
+                showToast("GitHub Personal Access Token is required. Please configure in Settings.", "error");
                 return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
             }
-            if (!ghToken) {
-                showPipelineError("Authentication Missing", "GitHub Personal Access Token is required to push source code. Please configure it in Settings.");
+            if (!vercelToken) {
+                showToast("Vercel Access Token is required. Please configure in Settings.", "error");
                 return switchView('settings', document.querySelectorAll('.nav-link-custom')[3]);
             }
 
             const rawName = document.getElementById('vercelProjectName').value.trim();
             if (!rawName) return showToast("Please enter a Project Name", "warning");
-
+            
             const cleanProjectName = rawName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
             if (!cleanProjectName) return showToast("Invalid Project Name. Use alphanumeric characters.", "warning");
 
@@ -2819,10 +2744,12 @@ CLOUD_HTML = r"""
                 pText.innerText = `${pct}%`;
                 sText.innerText = status;
                 tText.innerText = timeStr || "Calculating...";
+
+                // Sync with persistent floating widget
                 setGlobalFloatingProgress({
                     visible: true,
                     name: cleanProjectName,
-                    badge: 'NODE/VERCEL',
+                    badge: 'ELIVORA',
                     pct: pct,
                     status: status,
                     time: timeStr || "Calculating..."
@@ -2830,8 +2757,100 @@ CLOUD_HTML = r"""
             };
 
             try {
+                // 1. Verify credentials & obtain GitHub Username
+                updateVercelProgress(5, "Verifying GitHub & Vercel credentials...", "Starting...");
+                let ghUserData;
+                try {
+                    ghUserData = await ghFetch('/user');
+                    CONFIG.USERNAME = ghUserData.login;
+                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
+                } catch (e) {
+                    throw new Error("Invalid GitHub Personal Access Token.");
+                }
+
+                // 2. Call POST https://api.github.com/user/repos to create the repo and capture the repoId
+                updateVercelProgress(12, `Creating GitHub repository '${cleanProjectName}'...`, "Connecting...");
+                let repoData;
+                try {
+                    repoData = await ghFetch('/user/repos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: cleanProjectName,
+                            auto_init: true,
+                            private: false,
+                            description: "Deployed via Elivora Cloud (Node.js Vercel Pipeline)"
+                        })
+                    });
+                } catch(e) {
+                    updateVercelProgress(15, `Fetching existing repository '${cleanProjectName}'...`, "Connecting...");
+                    repoData = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}`);
+                }
+
+                const repoId = repoData.id;
+                const repoFullName = repoData.full_name || `${CONFIG.USERNAME}/${cleanProjectName}`;
+                const defaultBranch = repoData.default_branch || 'main';
+
+                // 3. Extract .zip via JSZip and push all files to the new GitHub repo using PUT
+                updateVercelProgress(20, "Extracting codebase archive in browser...", "Decompressing...");
+                const zip = new JSZip();
+                const loadedZip = await zip.loadAsync(zipFile);
+                const filesToUpload = Object.keys(loadedZip.files).filter(k => {
+                    return !loadedZip.files[k].dir && !k.startsWith('__MACOSX') && !k.includes('.DS_Store');
+                });
+
+                if (filesToUpload.length === 0) throw new Error("Zip archive is empty.");
+
+                let commonPrefix = "";
+                const firstParts = filesToUpload[0].split('/');
+                if (firstParts.length > 1) {
+                    const candidatePrefix = firstParts[0] + '/';
+                    if (filesToUpload.every(f => f.startsWith(candidatePrefix))) {
+                        commonPrefix = candidatePrefix;
+                    }
+                }
+
+                uploadStartTime = performance.now();
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const rawPath = filesToUpload[i];
+                    const cleanPath = commonPrefix && rawPath.startsWith(commonPrefix) ? rawPath.substring(commonPrefix.length) : rawPath;
+                    if (!cleanPath) continue;
+
+                    const base64Data = await loadedZip.files[rawPath].async("base64");
+                    
+                    let sha = null;
+                    try {
+                        const existingFile = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}?ref=${defaultBranch}`);
+                        if (existingFile && existingFile.sha) sha = existingFile.sha;
+                    } catch (e) {}
+
+                    const putPayload = {
+                        message: `Deploy ${cleanPath} via Elivora Cloud`,
+                        content: base64Data,
+                        branch: defaultBranch
+                    };
+                    if (sha) putPayload.sha = sha;
+
+                    try {
+                        await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(putPayload)
+                        });
+                    } catch(e) {}
+
+                    const stepPct = 20 + Math.floor((i / filesToUpload.length) * 55);
+                    const realTime = calculateRealUploadTimeRemaining(i + 1, filesToUpload.length);
+                    updateVercelProgress(stepPct, `Pushing (${i + 1}/${filesToUpload.length}): ${cleanPath}`, realTime);
+                }
+
+                // 4. Call POST https://api.vercel.com/v11/projects using Vercel Token
+                updateVercelProgress(78, "Configuring Vercel v11 Project & Git link...", "Configuring cloud...");
                 const preset = document.getElementById('vercelPreset').value;
-                const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
+                const frameworkMap = {
+                    "Next.js": "nextjs",
+                    "Vite": "vite",
+                    "React": "create-react-app",
+                    "Other": null
+                };
                 const frameworkValue = frameworkMap[preset] || null;
                 const rootDir = document.getElementById('vercelRootDir').value.trim();
                 const buildCmd = document.getElementById('vercelBuildCommand').value.trim();
@@ -2839,148 +2858,46 @@ CLOUD_HTML = r"""
                 const installCmd = document.getElementById('vercelInstallCommand').value.trim();
                 const envVars = getEnvVariablesFromContainer('envRowsContainer');
 
-                // 1. Resolve GitHub Identity
-                updateVercelProgress(5, "Verifying GitHub & Vercel credentials...", "Connecting...");
-                if (!CONFIG.USERNAME) {
-                    const ghUserData = await ghFetch('/user');
-                    CONFIG.USERNAME = ghUserData.login;
-                    localStorage.setItem('elivora_gh_user', CONFIG.USERNAME);
-                }
-
-                // 2. Extract and Filter Zip Contents
-                updateVercelProgress(10, "Extracting and filtering package files...", "Decompressing...");
-                const zip = new JSZip();
-                const loadedZip = await zip.loadAsync(zipFile);
-                
-                // Exclude node_modules, .git, and platform artifacts
-                const rawPaths = Object.keys(loadedZip.files).filter(k => {
-                    const norm = k.replace(/\\/g, '/');
-                    return !loadedZip.files[k].dir && 
-                           !norm.startsWith('__MACOSX') && 
-                           !norm.includes('.DS_Store') &&
-                           !norm.includes('node_modules/') &&
-                           !norm.startsWith('node_modules/') &&
-                           !norm.includes('.git/') &&
-                           !norm.startsWith('.git/') &&
-                           !norm.includes('.next/') &&
-                           !norm.includes('dist/');
-                });
-
-                if (rawPaths.length === 0) {
-                    throw new Error("No deployable files found in ZIP archive (ignoring node_modules). Make sure your project files are at the root or within a top-level directory.");
-                }
-
-                // Identify common root folder if files are nested
-                let commonPrefix = "";
-                const firstParts = rawPaths[0].replace(/\\/g, '/').split('/');
-                if (firstParts.length > 1) {
-                    const candidate = firstParts[0] + '/';
-                    if (rawPaths.every(f => f.replace(/\\/g, '/').startsWith(candidate))) {
-                        commonPrefix = candidate;
-                    }
-                }
-
-                // 3. Create or Link GitHub Repository
-                updateVercelProgress(18, `Creating GitHub repository '${cleanProjectName}'...`, "Syncing GitHub...");
-                try {
-                    await ghFetch('/user/repos', {
-                        method: 'POST',
-                        body: JSON.stringify({
-                            name: cleanProjectName,
-                            private: false,
-                            auto_init: true,
-                            description: "Deployed via Elivora Cloud Node.js Pipeline"
-                        })
-                    });
-                } catch(e) {
-                    // Check if repository already exists
-                    await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}`);
-                }
-
-                // 4. Push Codebase to GitHub
-                uploadStartTime = performance.now();
-                for (let i = 0; i < rawPaths.length; i++) {
-                    const rawPath = rawPaths[i];
-                    let normPath = rawPath.replace(/\\/g, '/');
-                    let cleanPath = commonPrefix && normPath.startsWith(commonPrefix) ? normPath.substring(commonPrefix.length) : normPath;
-                    cleanPath = cleanPath.replace(/^\/+/, '');
-                    if (!cleanPath) continue;
-
-                    const base64Data = await loadedZip.files[rawPath].async("base64");
-                    let sha = null;
-                    try {
-                        const fileInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`);
-                        if (fileInfo && fileInfo.sha) sha = fileInfo.sha;
-                    } catch(e) {}
-
-                    const putPayload = { message: `Deploy ${cleanPath} via Elivora Cloud`, content: base64Data };
-                    if (sha) putPayload.sha = sha;
-
-                    await ghFetch(`/repos/${CONFIG.USERNAME}/${cleanProjectName}/contents/${cleanPath}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(putPayload)
-                    });
-
-                    const pct = 20 + Math.floor((i / rawPaths.length) * 35);
-                    const timeRem = calculateRealUploadTimeRemaining(i + 1, rawPaths.length);
-                    updateVercelProgress(pct, `GitHub Sync (${i+1}/${rawPaths.length}): ${cleanPath}`, timeRem);
-                }
-
-                // 5. Upload Files to Vercel File Store
-                updateVercelProgress(58, "Uploading codebase to Vercel Cloud Store...", "Uploading...");
-                const vercelFiles = [];
-                for (let i = 0; i < rawPaths.length; i++) {
-                    const rawPath = rawPaths[i];
-                    let normPath = rawPath.replace(/\\/g, '/');
-                    let cleanPath = commonPrefix && normPath.startsWith(commonPrefix) ? normPath.substring(commonPrefix.length) : normPath;
-                    cleanPath = cleanPath.replace(/^\/+/, '');
-                    if (!cleanPath) continue;
-
-                    const uint8 = await loadedZip.files[rawPath].async("uint8array");
-                    const sha1 = await sha1Hex(uint8);
-                    const size = uint8.length;
-
-                    await fetchWithRetry('/vercel_api/v2/files', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${vercelToken}`,
-                            'Content-Type': 'application/octet-stream',
-                            'x-now-digest': sha1,
-                            'x-now-size': String(size)
-                        },
-                        body: uint8
-                    });
-
-                    vercelFiles.push({ file: cleanPath, sha: sha1, size: size });
-                }
-
-                // 6. Create / Update Vercel Project
-                updateVercelProgress(75, "Configuring Vercel project & build commands...", "Configuring...");
-                const projPayload = { name: cleanProjectName };
-                if (frameworkValue) projPayload.framework = frameworkValue;
-                if (rootDir && rootDir !== './' && rootDir !== '.') projPayload.rootDirectory = rootDir;
-                if (buildCmd) projPayload.buildCommand = buildCmd;
-                if (outputDir) projPayload.outputDirectory = outputDir;
-                if (installCmd) projPayload.installCommand = installCmd;
-
-                await fetch('/vercel_api/v11/projects', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${vercelToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(projPayload)
-                });
-
-                // 7. Inject Environment Variables
-                if (envVars.length > 0) {
-                    updateVercelProgress(82, `Injecting ${envVars.length} environment variables...`, "Setting env...");
-                    await pushEnvVarsToVercel(cleanProjectName, envVars, vercelToken);
-                }
-
-                // 8. Trigger Vercel Production Build
-                updateVercelProgress(88, "Triggering build and container initialization...", "Deploying...");
-                const deployPayload = {
+                const vercelProjectPayload = {
                     name: cleanProjectName,
-                    files: vercelFiles,
+                    gitRepository: {
+                        type: "github",
+                        repo: repoFullName
+                    }
+                };
+                if (frameworkValue) vercelProjectPayload.framework = frameworkValue;
+                if (rootDir && rootDir !== './' && rootDir !== '.') vercelProjectPayload.rootDirectory = rootDir;
+                if (buildCmd) vercelProjectPayload.buildCommand = buildCmd;
+                if (outputDir) vercelProjectPayload.outputDirectory = outputDir;
+                if (installCmd) vercelProjectPayload.installCommand = installCmd;
+                if (envVars.length > 0) vercelProjectPayload.environmentVariables = envVars;
+
+                let vercelProjRes = await fetch('https://api.vercel.com/v11/projects', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${vercelToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(vercelProjectPayload)
+                });
+
+                if (vercelProjRes.status === 409) {
+                    updateVercelProgress(82, "Project exists on Vercel. Updating settings...", "Configuring...");
+                    await fetch(`https://api.vercel.com/v9/projects/${cleanProjectName}`, {
+                        headers: { 'Authorization': `Bearer ${vercelToken}` }
+                    }).catch(() => {});
+                }
+
+                // 5. Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1 to trigger the build
+                updateVercelProgress(86, "Triggering Elivora Cloud Production Deployment...", "Triggering build...");
+                const vercelDeployPayload = {
+                    name: cleanProjectName,
                     target: "production",
+                    gitSource: {
+                        type: "github",
+                        repoId: String(repoId),
+                        ref: defaultBranch
+                    },
                     projectSettings: {
                         framework: frameworkValue,
                         buildCommand: buildCmd || null,
@@ -2990,64 +2907,84 @@ CLOUD_HTML = r"""
                     }
                 };
 
-                const deployRes = await fetch('/vercel_api/v13/deployments?skipAutoDetectionConfirmation=1', {
+                let vercelDeployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${vercelToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(deployPayload)
+                    body: JSON.stringify(vercelDeployPayload)
                 });
 
-                if (!deployRes.ok) {
-                    const dErr = await deployRes.json().catch(() => ({}));
-                    throw new Error(dErr.error?.message || `Vercel Deployment error (HTTP ${deployRes.status}). Check build commands.`);
+                if (!vercelDeployRes.ok) {
+                    const dErr = await vercelDeployRes.json().catch(() => ({}));
+                    throw new Error(dErr.error?.message || `Deployment API error (${vercelDeployRes.status})`);
                 }
 
-            const dData = await deployRes.json();
-                const deploymentId = dData.id || "";
-                
-                // Extract the exact live production URL assigned by Vercel
-                let rawUrl = dData.url || (dData.alias && dData.alias[0]) || `${cleanProjectName}.vercel.app`;
-                if (dData.subdomain) {
-                    rawUrl = `${dData.subdomain}.vercel.app`;
-                }
-                const liveUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+                let dData = {};
+                let deploymentId = "";
+                let inspectorUrl = `https://vercel.com`;
+                let liveUrl = `https://${cleanProjectName}.vercel.app`;
+                let initialReadyState = 'BUILDING';
 
+                if (vercelDeployRes.ok) {
+                    dData = await vercelDeployRes.json();
+                    deploymentId = dData.id || "";
+                    inspectorUrl = dData.inspectorUrl || inspectorUrl;
+                    initialReadyState = dData.readyState || 'BUILDING';
+                    if (dData.url) {
+                        liveUrl = dData.url.startsWith('http') ? dData.url : `https://${dData.url}`;
+                    }
+                }
+
+                // Create and store project record
                 const newProject = {
                     id: cleanProjectName,
                     deploymentId: deploymentId,
-                    url: liveUrl,
+                    url: `https://${cleanProjectName}.vercel.app`,
                     deploymentUrl: liveUrl,
-                    inspectorUrl: dData.inspectorUrl || "https://vercel.com",
+                    inspectorUrl: inspectorUrl,
                     github: `https://github.com/${CONFIG.USERNAME}/${cleanProjectName}`,
                     date: new Date().toISOString(),
-                    status: (dData.readyState === 'READY' ? 'live' : 'building'),
+                    status: (initialReadyState === 'READY' ? 'live' : 'building'),
                     platform: 'vercel',
                     preset: preset,
-                    _vercelFiles: vercelFiles,
-                    config: { preset, rootDir, buildCmd, outputDir, installCmd, envVars }
+                    config: {
+                        preset, rootDir, buildCmd, outputDir, installCmd, envVars
+                    }
                 };
 
                 saveVercelDeploymentRecord(newProject);
                 activeDeployments.add(cleanProjectName);
 
+                // Add to projects list
                 const existingIdx = projects.findIndex(p => p.id === cleanProjectName);
                 if (existingIdx >= 0) projects[existingIdx] = newProject;
                 else projects.unshift(newProject);
 
                 renderProjects();
                 renderAnalytics();
+
+                // Clear form
                 clearVercelFile();
                 document.getElementById('vercelProjectName').value = '';
 
-                if (deploymentId && dData.readyState !== 'READY') {
-                    showToast("Code pushed to GitHub & uploaded to Vercel. Polling deployment...", "info");
+                // If Vercel is still building, initiate the real-time polling monitor!
+                if (deploymentId && initialReadyState !== 'READY') {
+                    showToast("Deployment queued on Vercel. Monitoring build progress...", "info");
                     pollVercelBuildStatus(deploymentId, cleanProjectName);
                 } else {
-                    updateVercelProgress(100, "Live and Ready!", "Ready");
-                    showToast(`Deployment ready at ${liveUrl}`, "success");
-                    setGlobalFloatingProgress({ visible: true, name: cleanProjectName, badge: 'NODE/VERCEL', pct: 100, status: "Live & Ready!", time: "Ready", done: true });
+                    updateVercelProgress(100, "Vercel Deployment Live!", "Ready");
+                    showToast(`Deployed to Vercel: https://${cleanProjectName}.vercel.app`, "success");
+                    setGlobalFloatingProgress({
+                        visible: true,
+                        name: cleanProjectName,
+                        badge: 'ELIVORA',
+                        pct: 100,
+                        status: "Live & Ready!",
+                        time: "Ready",
+                        done: true
+                    });
                     setTimeout(() => setGlobalFloatingProgress({ visible: false }), 4000);
                 }
 
@@ -3055,7 +2992,7 @@ CLOUD_HTML = r"""
 
             } catch (err) {
                 console.error("Vercel pipeline failure:", err);
-                showPipelineError("Pipeline Execution Error", err.message || "An unexpected error stopped the deployment.");
+                showToast(err.message || "Failed to deploy to Vercel", "error");
                 setGlobalFloatingProgress({ visible: false });
             } finally {
                 deployBtn.disabled = false;
@@ -3079,7 +3016,7 @@ CLOUD_HTML = r"""
                 const estRemaining = Math.max(5, 55 - elapsedSec);
 
                 try {
-                    const res = await fetch(`/vercel_api/v13/deployments/${deploymentId}`, {
+                    const res = await fetch(`https://api.vercel.com/v13/deployments/${deploymentId}`, {
                         headers: { 'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}` }
                     });
 
@@ -3101,10 +3038,7 @@ CLOUD_HTML = r"""
                             if (state === 'READY') {
                                 clearInterval(pollInterval);
                                 proj.status = 'live';
-                                
-                                // Grab the exact working domain from Vercel's status response
-                                let activeDomain = data.url || (data.alias && data.alias[0]) || `${cleanProjectName}.vercel.app`;
-                                proj.url = activeDomain.startsWith('http') ? activeDomain : `https://${activeDomain}`;
+                                proj.url = `https://${cleanProjectName}.vercel.app`;
                                 saveVercelDeploymentRecord(proj);
                                 renderProjects();
 
@@ -3162,9 +3096,8 @@ CLOUD_HTML = r"""
             const proj = savedList.find(p => p.id === projectId) || projects.find(p => p.id === projectId);
             if (!proj) return showToast("Project details not found for re-deploy", "error");
 
-            const vercelToken = (CONFIG.VERCEL_TOKEN || "").trim();
-            if (!vercelToken) {
-                return showToast("Please configure your Vercel Access Token in Settings.", "error");
+            if (!CONFIG.TOKEN || !CONFIG.VERCEL_TOKEN) {
+                return showToast("Please configure your GitHub and Vercel tokens in Settings.", "error");
             }
 
             startCardProcess(projectId, "Triggering Auto Re-Deploy...");
@@ -3173,70 +3106,48 @@ CLOUD_HTML = r"""
                 name: projectId,
                 badge: 'ELIVORA',
                 pct: 15,
-                status: "Preparing Vercel re-deployment...",
+                status: "Requesting fresh Vercel build...",
                 time: "Starting..."
             });
 
             try {
+                // Fetch GitHub repo details to get current default branch
+                const repoInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${projectId}`);
+                const repoId = repoInfo.id;
+                const defaultBranch = repoInfo.default_branch || 'main';
+
+                // Retrieve saved project configuration for projectSettings
                 const pConfig = proj.config || {};
-                const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
+                const frameworkMap = {
+                    "Next.js": "nextjs",
+                    "Vite": "vite",
+                    "React": "create-react-app",
+                    "Other": null
+                };
                 const frameworkVal = frameworkMap[pConfig.preset] || null;
 
-                const projectSettings = {
-                    framework: frameworkVal,
-                    buildCommand: pConfig.buildCmd || null,
-                    outputDirectory: pConfig.outputDir || null,
-                    installCommand: pConfig.installCmd || null,
-                    rootDirectory: (pConfig.rootDir && pConfig.rootDir !== './' && pConfig.rootDir !== '.') ? pConfig.rootDir : null
+                // Call POST https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1
+                const vercelDeployPayload = {
+                    name: projectId,
+                    target: "production",
+                    gitSource: {
+                        type: "github",
+                        repoId: String(repoId),
+                        ref: defaultBranch
+                    },
+                    projectSettings: {
+                        framework: frameworkVal,
+                        buildCommand: pConfig.buildCmd || null,
+                        outputDirectory: pConfig.outputDir || null,
+                        installCommand: pConfig.installCmd || null,
+                        rootDirectory: (pConfig.rootDir && pConfig.rootDir !== './' && pConfig.rootDir !== '.') ? pConfig.rootDir : null
+                    }
                 };
 
-                // Push env vars to Vercel before redeploying (if any saved)
-                const savedEnvVars = pConfig.envVars || [];
-                if (savedEnvVars.length > 0) {
-                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 25, status: "Pushing env vars to Vercel...", time: "Configuring..." });
-                    await pushEnvVarsToVercel(projectId, savedEnvVars, vercelToken);
-                }
-
-                let vercelDeployPayload;
-
-                // Strategy 1: Use stored Vercel files list (direct re-upload, no GitHub needed)
-                if (proj._vercelFiles && proj._vercelFiles.length > 0) {
-                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 50, status: "Re-deploying from stored files...", time: "Building..." });
-                    vercelDeployPayload = {
-                        name: projectId,
-                        files: proj._vercelFiles,
-                        target: "production",
-                        projectSettings
-                    };
-                }
-                // Strategy 2: Use GitHub source (requires GitHub token + GitHub-Vercel integration)
-                else if (CONFIG.TOKEN && CONFIG.USERNAME) {
-                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 40, status: "Fetching GitHub repo info...", time: "Connecting..." });
-                    const repoInfo = await ghFetch(`/repos/${CONFIG.USERNAME}/${projectId}`);
-                    const repoId = repoInfo.id;
-                    const defaultBranch = repoInfo.default_branch || 'main';
-                    vercelDeployPayload = {
-                        name: projectId,
-                        target: "production",
-                        gitSource: { type: "github", repoId: String(repoId), ref: defaultBranch },
-                        projectSettings
-                    };
-                }
-                // Strategy 3: Trigger re-deploy from Vercel's last known deployment
-                else {
-                    // Just re-trigger from latest deployment on Vercel
-                    setGlobalFloatingProgress({ visible: true, name: projectId, badge: 'ELIVORA', pct: 50, status: "Triggering Vercel re-build...", time: "Building..." });
-                    vercelDeployPayload = {
-                        name: projectId,
-                        target: "production",
-                        projectSettings
-                    };
-                }
-
-                const deployRes = await fetch('/vercel_api/v13/deployments?skipAutoDetectionConfirmation=1', {
+                const deployRes = await fetch('https://api.vercel.com/v13/deployments?skipAutoDetectionConfirmation=1', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${vercelToken}`,
+                        'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(vercelDeployPayload)
@@ -3244,7 +3155,7 @@ CLOUD_HTML = r"""
 
                 if (!deployRes.ok) {
                     const err = await deployRes.json().catch(() => ({}));
-                    throw new Error(err.error?.message || `Re-deploy failed (HTTP ${deployRes.status}). Try uploading a new zip.`);
+                    throw new Error(err.error?.message || "Failed to trigger Vercel deployment");
                 }
 
                 const dData = await deployRes.json();
@@ -3258,7 +3169,7 @@ CLOUD_HTML = r"""
                 updateCardUI(projectId);
 
                 finishCardProcess(projectId, "Build Triggered!");
-                showToast(`🔄 Re-deploy triggered for ${projectId}! Monitoring build...`, 'info');
+                showToast(`Auto Re-Deploy triggered for ${projectId}! Monitoring build...`, 'info');
 
                 pollVercelBuildStatus(deploymentId, projectId);
 
@@ -3336,18 +3247,19 @@ CLOUD_HTML = r"""
 
             closeModals();
 
-            showToast("Updating Vercel cloud project settings & env vars...", "info");
+            // Update Vercel project configuration via API
+            showToast("Updating Vercel cloud project settings...", "info");
             try {
                 const frameworkMap = { "Next.js": "nextjs", "Vite": "vite", "React": "create-react-app", "Other": null };
-                // 1. Update project build settings via PATCH
                 const updatePayload = {};
                 if (frameworkMap[preset] !== undefined) updatePayload.framework = frameworkMap[preset];
                 if (rootDir) updatePayload.rootDirectory = rootDir === './' ? null : rootDir;
                 if (buildCmd) updatePayload.buildCommand = buildCmd;
                 if (outputDir) updatePayload.outputDirectory = outputDir;
                 if (installCmd) updatePayload.installCommand = installCmd;
+                if (envVars.length > 0) updatePayload.environmentVariables = envVars;
 
-                await fetch(`/vercel_api/v9/projects/${projectId}`, {
+                await fetch(`https://api.vercel.com/v9/projects/${projectId}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}`,
@@ -3355,15 +3267,7 @@ CLOUD_HTML = r"""
                     },
                     body: JSON.stringify(updatePayload)
                 }).catch(() => {});
-
-                // 2. Push env vars using the correct Vercel env API (POST /v10/projects/:id/env)
-                if (envVars.length > 0) {
-                    await pushEnvVarsToVercel(projectId, envVars, CONFIG.VERCEL_TOKEN);
-                    showToast(`✅ Pushed ${envVars.length} env var(s) to Vercel successfully!`, "success");
-                }
-            } catch(e) {
-                console.warn('Settings update warning:', e);
-            }
+            } catch(e) {}
 
             // Now trigger fresh deployment
             await triggerAutoRedeploy(projectId);
@@ -3730,70 +3634,19 @@ CLOUD_HTML = r"""
         async function executeConfirmedDelete() {
             closeModals();
             const id = targetDeleteId;
-            startCardProcess(id, "Deleting Deployment & Repo...");
-
-            let githubDeleted = false;
-            let vercelDeleted = false;
-            let warningNotes = [];
-
-            // 1. Delete from GitHub if token is present
-            if (CONFIG.TOKEN) {
-                try {
-                    if (!CONFIG.USERNAME) {
-                        const uData = await ghFetch('/user').catch(() => null);
-                        if (uData) CONFIG.USERNAME = uData.login;
-                    }
-                    if (CONFIG.USERNAME) {
-                        await ghFetch(`/repos/${CONFIG.USERNAME}/${id}`, { method: 'DELETE' });
-                        githubDeleted = true;
-                    }
-                } catch (ghErr) {
-                    if (ghErr.message.includes('404')) {
-                        githubDeleted = true; // Repo already gone on GitHub
-                    } else if (ghErr.message.includes('403') || ghErr.message.includes('Must have admin rights')) {
-                        warningNotes.push("GitHub PAT requires 'delete_repo' scope to delete from GitHub directly.");
-                    } else {
-                        warningNotes.push(`GitHub: ${ghErr.message}`);
-                    }
-                }
+            startCardProcess(id, "Deleting Repository...");
+            try {
+                await ghFetch(`/repos/${CONFIG.USERNAME}/${id}`, { method: 'DELETE' });
+                // Also remove from saved vercel
+                const vList = getSavedVercelDeployments().filter(x => x.id !== id);
+                localStorage.setItem('elivora_vercel_projects', JSON.stringify(vList));
+                projects = projects.filter(x => x.id !== id);
+                finishCardProcess(id, "Deleted", true);
+                showToast(`Repository ${id} deleted`, 'info');
+                renderAnalytics();
+            } catch (err) {
+                failCardProcess(id, err.message);
             }
-
-            // 2. Delete from Vercel if Vercel token is present
-            if (CONFIG.VERCEL_TOKEN) {
-                try {
-                    const vRes = await fetch(`/vercel_api/v9/projects/${id}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${CONFIG.VERCEL_TOKEN}` }
-                    });
-                    if (vRes.ok || vRes.status === 404) {
-                        vercelDeleted = true;
-                    } else {
-                        const vErr = await vRes.json().catch(() => ({}));
-                        warningNotes.push(`Vercel: ${vErr.error?.message || vRes.status}`);
-                    }
-                } catch(e) {
-                    warningNotes.push(`Vercel: ${e.message}`);
-                }
-            }
-
-            // 3. Clear from local storage and cache regardless
-            const vList = getSavedVercelDeployments().filter(x => x.id !== id);
-            localStorage.setItem('elivora_vercel_projects', JSON.stringify(vList));
-            
-            delete localStatuses[id];
-            localStorage.setItem('elivora_statuses', JSON.stringify(localStatuses));
-
-            projects = projects.filter(x => x.id !== id);
-            activeDeployments.delete(id);
-
-            finishCardProcess(id, "Deleted", true);
-
-            if (warningNotes.length > 0) {
-                showToast(`Project removed locally. (${warningNotes.join(' | ')})`, 'warning');
-            } else {
-                showToast(`Deployment '${id}' deleted successfully from all platforms.`, 'success');
-            }
-            renderAnalytics();
         }
 
         function openRenameModal(oldName) {
@@ -3955,60 +3808,11 @@ CLOUD_HTML = r"""
 </html>
 
 """
-
 # =====================================================================
 # LOCAL WEB SERVER & API HANDLER
 # =====================================================================
 class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
-    def do_vercel_proxy(self, method):
-        content_length = int(self.headers.get('Content-Length', 0))
-        post_data = self.rfile.read(content_length) if content_length > 0 else None
-        
-        target_url = "https://api.vercel.com" + self.path.replace("/vercel_api", "")
-        req = urllib.request.Request(target_url, data=post_data, method=method)
-        
-        for h in ['Authorization', 'Content-Type', 'x-now-digest', 'x-now-size']:
-            if h in self.headers:
-                req.add_header(h, self.headers[h])
-                
-        try:
-            with urllib.request.urlopen(req, timeout=30) as response:
-                body = response.read()
-                self.send_response(response.status)
-                self.send_header('Content-Type', response.headers.get('Content-Type', 'application/json'))
-                self.end_headers()
-                self.wfile.write(body)
-        except Exception as e:
-            if hasattr(e, 'code') and hasattr(e, 'read'):
-                self.send_response(e.code)
-                self.send_header('Content-Type', e.headers.get('Content-Type', 'application/json') if hasattr(e, 'headers') else 'application/json')
-                self.end_headers()
-                self.wfile.write(e.read())
-            else:
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": {"message": str(e)}}).encode('utf-8'))
-
-    def do_PATCH(self):
-        if self.path.startswith('/vercel_api/'):
-            self.do_vercel_proxy('PATCH')
-            return
-        self.send_response(404)
-        self.end_headers()
-
-    def do_DELETE(self):
-        if self.path.startswith('/vercel_api/'):
-            self.do_vercel_proxy('DELETE')
-            return
-        self.send_response(404)
-        self.end_headers()
-
     def do_GET(self):
-        if self.path.startswith('/vercel_api/'):
-            self.do_vercel_proxy('GET')
-            return
-            
         parsed_path = urllib.parse.urlparse(self.path)
         
         if parsed_path.path == '/':
@@ -4027,10 +3831,10 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             
             # Safely grab the token from the .env file and inject it into the HTML
-            gh_token = os.environ.get("GITHUB_DEFAULT_TOKEN", "ghp_V84g5k4mCg8x1lE7XvC4f8lqWqM8Pq2J8l3fK")
-            gh_user = os.environ.get("GITHUB_DEFAULT_USER", "")
-            vercel_token = os.environ.get("VERCEL_DEFAULT_TOKEN", "vcp_2jLGUyVwaNl1LPPpvMdd8gJWq5XUm4Vjp8C1vWy47krj6n2kU53XFAlO")
-            final_html = CLOUD_HTML.replace('{{GITHUB_TOKEN_PLACEHOLDER}}', gh_token).replace('{{GITHUB_USERNAME_PLACEHOLDER}}', gh_user).replace('{{VERCEL_TOKEN_PLACEHOLDER}}', vercel_token)
+            gh_token = os.environ.get("GITHUB_DEFAULT_TOKEN", "")
+            gh_token = os.environ.get("GITHUB_DEFAULT_TOKEN", "")
+            vercel_token = os.environ.get("VERCEL_DEFAULT_TOKEN", "")
+            final_html = CLOUD_HTML.replace('{{GITHUB_TOKEN_PLACEHOLDER}}', gh_token).replace('{{VERCEL_TOKEN_PLACEHOLDER}}', vercel_token)
             
             self.wfile.write(final_html.encode('utf-8'))
             
@@ -4080,10 +3884,6 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        if self.path.startswith('/vercel_api/'):
-            self.do_vercel_proxy('POST')
-            return
-            
         parsed_path = urllib.parse.urlparse(self.path)
         if parsed_path.path == '/send_message':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -4105,8 +3905,8 @@ class WebDashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format, *args): pass
-            
+    def log_message(self, format, *args): pass 
+
 def start_web_server():
     PORT = 8080
     class ReusableTCPServer(socketserver.ThreadingTCPServer): allow_reuse_address = True
@@ -4224,6 +4024,17 @@ class AudioLoop:
                                 result_text = await asyncio.to_thread(google_search_api, query)
                                 function_responses.append(types.FunctionResponse(name=fc.name, id=fc.id, response={"result": result_text}))
                         
+                            elif fc.name.startswith("mcp_"):
+                                real_name = fc.name[4:].replace("_", "-")
+                                print(f"[MCP] Forwarding to {real_name} with args {fc.args}")
+                                try:
+                                    mcp_res = await self.mcp_session.call_tool(real_name, arguments=dict(fc.args) if fc.args else {})
+                                    result_text = "\n".join([c.text for c in mcp_res.content if c.type == 'text'])
+                                    if not result_text: result_text = "Success"
+                                except Exception as e:
+                                    result_text = f"Error: {e}"
+                                function_responses.append(types.FunctionResponse(name=fc.name, id=fc.id, response={"result": result_text}))
+
                         if function_responses:
                             await self.session.send_tool_response(function_responses=function_responses)
                         continue
@@ -4252,36 +4063,60 @@ class AudioLoop:
                 if self.audio_in_queue.empty(): IS_SPEAKING = False; CURRENT_AI_VOLUME = 0.0
 
     async def run(self):
-        while True:
-            try:
-                active_client = get_next_client()
-                async with (
-                    active_client.aio.live.connect(model=MODEL, config=CONFIG) as session,
-                    asyncio.TaskGroup() as tg,
-                ):
-                    self.session = session
-                    self.audio_in_queue = asyncio.Queue()
-                    self.out_queue = asyncio.Queue(maxsize=5)
-
-                    tg.create_task(self.send_text_realtime()) 
-                    tg.create_task(self.send_realtime())
-                    tg.create_task(self.listen_audio())
-                    tg.create_task(self.get_frames())
-                    tg.create_task(self.receive_audio())
-                    tg.create_task(self.play_audio())
-
-                    while True: 
-                        await asyncio.sleep(1)
-            except asyncio.CancelledError:
-                break
-            except (ExceptionGroup, Exception) as err:
-                if self.audio_stream is not None:
+        # Setup MCP Server
+        server_params = StdioServerParameters(
+            command=r"windows-mcp-server-bin\windows-mcp-server.exe",
+            args=["stdio", "--toolsets", "all"],
+            env=None
+        )
+        async with stdio_client(server_params) as (read, write):
+            async with ClientSession(read, write) as mcp_session:
+                await mcp_session.initialize()
+                self.mcp_session = mcp_session
+                print("[SYSTEM] Connected to Windows MCP Server (all toolsets)")
+                
+                # Fetch tools
+                mcp_tools_resp = await mcp_session.list_tools()
+                
+                for tool in mcp_tools_resp.tools:
+                    if not any(fd.name == "mcp_" + tool.name.replace("-", "_") for fd in CONFIG.tools[0].function_declarations):
+                        fd = types.FunctionDeclaration(
+                            name="mcp_" + tool.name.replace("-", "_"),
+                            description=tool.description[:1000] if tool.description else "",
+                            parameters=dict_to_schema(tool.input_schema)
+                        )
+                        CONFIG.tools[0].function_declarations.append(fd)
+                
+                while True:
                     try:
-                        self.audio_stream.close()
-                    except Exception:
-                        pass
-                print(f"\n[SYSTEM] Connection terminated or key quota exhausted ({err}). Seamlessly switching to next key...")
-                await asyncio.sleep(1)
+                        active_client = get_next_client()
+                        async with (
+                            active_client.aio.live.connect(model=MODEL, config=CONFIG) as session,
+                            asyncio.TaskGroup() as tg,
+                        ):
+                            self.session = session
+                            self.audio_in_queue = asyncio.Queue()
+                            self.out_queue = asyncio.Queue(maxsize=5)
+
+                            tg.create_task(self.send_text_realtime()) 
+                            tg.create_task(self.send_realtime())
+                            tg.create_task(self.listen_audio())
+                            tg.create_task(self.get_frames())
+                            tg.create_task(self.receive_audio())
+                            tg.create_task(self.play_audio())
+
+                            while True: 
+                                await asyncio.sleep(1)
+                    except asyncio.CancelledError:
+                        break
+                    except (ExceptionGroup, Exception) as err:
+                        if self.audio_stream is not None:
+                            try:
+                                self.audio_stream.close()
+                            except Exception:
+                                pass
+                        print(f"\\n[SYSTEM] Connection terminated or key quota exhausted ({err}). Seamlessly switching to next key...")
+                        await asyncio.sleep(1)
 
 # =====================================================================
 # MAIN EXECUTION SEQUENCE
