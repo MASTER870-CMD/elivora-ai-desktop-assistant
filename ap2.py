@@ -4088,37 +4088,35 @@ class AudioLoop:
                     safe_name = "mcp1_" + tool.name.replace("-", "_")
                     self.mcp_tool_map[safe_name] = (tool.name, session1)
                     if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
-                        desc = f"[DESKTOP CONTROL - Use this to interact with the user's VISIBLE screen, apps, and windows] {tool.description or ''}"
                         fd = types.FunctionDeclaration(
                             name=safe_name,
-                            description=desc[:1000],
+                            description=tool.description[:1000] if tool.description else "",
                             parameters=dict_to_schema(tool.input_schema)
                         )
                         CONFIG.tools[0].function_declarations.append(fd)
             except Exception as e:
                 print(f"[ERROR] Failed to start Windows MCP: {e}")
 
-            # 2. Playwright MCP Server (lazy - only opens browser when AI needs it)
+            # 2. Playwright MCP Server
             try:
                 server2_params = StdioServerParameters(
                     command="npx.cmd",
-                    args=["-y", "@playwright/mcp@latest", "--browser", "chrome", "--headless"],
+                    args=["-y", "@playwright/mcp@latest"],
                     env=None
                 )
                 read2, write2 = await stack.enter_async_context(stdio_client(server2_params))
                 session2 = await stack.enter_async_context(ClientSession(read2, write2))
                 await session2.initialize()
-                print("[SYSTEM] Connected to Playwright MCP Server (on-demand)")
+                print("[SYSTEM] Connected to Playwright MCP Server")
                 
                 tools2_resp = await session2.list_tools()
                 for tool in tools2_resp.tools:
                     safe_name = "mcp2_" + tool.name.replace("-", "_")
                     self.mcp_tool_map[safe_name] = (tool.name, session2)
                     if not any(fd.name == safe_name for fd in CONFIG.tools[0].function_declarations):
-                        desc = f"[HEADLESS WEB SCRAPER - Use ONLY for invisible background web data extraction, NOT for controlling user's visible browser] {tool.description or ''}"
                         fd = types.FunctionDeclaration(
                             name=safe_name,
-                            description=desc[:1000],
+                            description=tool.description[:1000] if tool.description else "",
                             parameters=dict_to_schema(tool.input_schema)
                         )
                         CONFIG.tools[0].function_declarations.append(fd)
