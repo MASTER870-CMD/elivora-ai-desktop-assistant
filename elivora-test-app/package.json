@@ -1,0 +1,8 @@
+{
+  "name": "elivora-test-app",
+  "version": "1.0.0",
+  "description": "A simple test app for Elivora Cloud Deployment",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
