@@ -1,0 +1,1 @@
+{"MASTER870-CMD/ek-test": {"repo_name": "MASTER870-CMD/ek-test", "url": "https://ek-test-oqkwafhdn-gemini20api-4080s-projects.vercel.app", "env_vars": {"APP_TITLE": "My Super AI Web App 8.0", "SECRET_KEY": "Shashank12347777"}, "build_cmd": "npm run build", "output_dir": "dist", "timestamp": 1789920984.5902958}}
